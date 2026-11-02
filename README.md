@@ -5,7 +5,7 @@ Evolutionary search over post-hoc pruning thresholds for pretrained
 fewer Gaussians and faster rendering with minimal quality loss, no retraining. Rendering uses
 [gsplat](https://github.com/nerfstudio-project/gsplat) 1.5.3; evaluation follows the
 [NerfBaselines](https://nerfbaselines.github.io/mipnerf360) Mip-NeRF 360 protocol.
-(EA class project: Eli Arbogast + Areeb.)
+(EA class project: Eli + Areeb.)
 
 ## Status (2026-11-02)
 
