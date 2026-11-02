@@ -1,0 +1,7 @@
+# Install torch/torchvision first with the right CUDA build (scripts/setup_local.sh does this),
+# then gsplat==1.5.3. These are the project's own Python deps:
+plyfile
+pillow
+numpy<2
+torchmetrics[image]
+pytest

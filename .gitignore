@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- EASplatting: large / generated artifacts (never commit) ---
+data/
+pretrained/
+results/
+ext/
+.torch_extensions/
+*.ply
+*.zip
+*.pt
