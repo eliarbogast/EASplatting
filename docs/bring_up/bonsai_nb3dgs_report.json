@@ -1,0 +1,116 @@
+{
+ "args": {
+  "scene": "pretrained/nb/gaussian-splatting/mipnerf360/bonsai/point_cloud.ply",
+  "cameras": "data/360_v2/bonsai",
+  "images": "images_2",
+  "image_dir": null,
+  "blender_split": "test",
+  "split": "test",
+  "every": 1,
+  "k": null,
+  "background": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "rasterize_mode": "classic",
+  "lpips_net": "vgg",
+  "no_lpips": false,
+  "batch_size": 4,
+  "out": "results/eval_bonsai_nb3dgs",
+  "save_n": 4,
+  "cache_baselines": true,
+  "prune_opacity": 0.005,
+  "fps": true,
+  "gsplat_stats": null,
+  "nb_metrics": "pretrained/nb/gaussian-splatting/mipnerf360/bonsai/bonsai.json",
+  "min_frustum": 0.05,
+  "force": false,
+  "device": "cuda"
+ },
+ "env": {
+  "python": "3.10.22",
+  "torch": "2.8.0+cu128",
+  "cuda": "12.8",
+  "host": "pop-os",
+  "gpu": "NVIDIA GeForce RTX 5070 Ti",
+  "gpu_mem_gb": 15.4,
+  "gsplat": "1.5.3"
+ },
+ "checks": {
+  "frustum_median_visible": 0.31755000352859497,
+  "gt_size_matches_camera": true,
+  "psnr_sane": true,
+  "matches_nerfbaselines": true
+ },
+ "scene": {
+  "path": "pretrained/nb/gaussian-splatting/mipnerf360/bonsai/point_cloud.ply",
+  "num_gaussians": 1247650,
+  "sh_degree": 3,
+  "size_mb_uncompressed": 309.4,
+  "file_mb": 309.4,
+  "load_s": 0.51,
+  "opacity_lt_0005": 0.12142748385667801
+ },
+ "cameras": {
+  "source": "data/360_v2/bonsai",
+  "total": 292,
+  "split": "test",
+  "n_views": 37,
+  "size": [
+   1559,
+   1039
+  ],
+  "have_gt": true
+ },
+ "timing": {
+  "render_s_per_view": 0.0132,
+  "peak_gpu_mem_gb": 4.65
+ },
+ "metrics_vs_gt": {
+  "psnr": 32.23454248582995,
+  "psnr_std": 3.043245346229773,
+  "ssim": 0.9420982244852427,
+  "ssim_std": 0.013649609991794995,
+  "lpips": 0.26215078097742955,
+  "lpips_std": 0.04952681204488596
+ },
+ "baselines": "results/eval_bonsai_nb3dgs/baselines_test.pt",
+ "prune_demo": {
+  "threshold": 0.005,
+  "kept": 1096151,
+  "kept_frac": 0.8785725163307018,
+  "psnr_vs_unpruned_capped60": 60.0,
+  "metrics_vs_gt": {
+   "psnr": 32.23452284529402,
+   "psnr_std": 3.043226634083556,
+   "ssim": 0.9420981729352796,
+   "ssim_std": 0.013649635565201814,
+   "lpips": 0.26215285505797414,
+   "lpips_std": 0.04952743210582978
+  }
+ },
+ "fps_unpruned": {
+  "ms_per_frame": 2.277060999972491,
+  "fps": 439.16258721750575
+ },
+ "fps_pruned": {
+  "ms_per_frame": 2.2889184999712597,
+  "fps": 436.88755192137955
+ },
+ "crosschecks": {
+  "nerfbaselines": {
+   "path": "pretrained/nb/gaussian-splatting/mipnerf360/bonsai/bonsai.json",
+   "reference": {
+    "psnr": 32.19683,
+    "ssim": 0.94118,
+    "lpips": 0.25378
+   },
+   "diff_ours_minus_ref": {
+    "psnr": 0.0377,
+    "ssim": 0.0009,
+    "lpips": 0.0084
+   }
+  }
+ }
+}

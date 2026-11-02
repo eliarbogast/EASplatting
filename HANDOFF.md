@@ -135,6 +135,9 @@ paper-table comparisons. `evaluate.crosscheck` now enforces LPIPS (tol 0.01) too
 
 ## Open questions for Eli / Areeb
 
+See `docs/EA_OPEN_QUESTIONS.md` for the fuller list (with leans) and visualization/feedback ideas.
+Bring-up reports: `docs/bring_up/`.
+
 - Fitness form: weighted (λ sweep), constrained (ΔPSNR ≤ τ), or multi-objective (NSGA-II)?
 - Which scenes for the main experiments (suggest 3–4 Mip-NeRF 360, indoor + outdoor)?
 - Fine-tune after pruning, or strictly training-free? (Positioning vs LP-3DGS / Speedy-Splat.)

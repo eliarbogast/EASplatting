@@ -1,0 +1,93 @@
+{
+ "args": {
+  "scene": "results/truck_gsplat_7k/ckpts/ckpt_6999_rank0.pt",
+  "cameras": "results/truck_gsplat_7k/cameras.json",
+  "images": "images",
+  "image_dir": null,
+  "blender_split": "test",
+  "split": "test",
+  "every": 1,
+  "k": null,
+  "background": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "rasterize_mode": "classic",
+  "lpips_net": "alex",
+  "no_lpips": false,
+  "batch_size": 4,
+  "out": "results/eval_truck_gsplat_7k",
+  "save_n": 4,
+  "cache_baselines": false,
+  "prune_opacity": null,
+  "fps": false,
+  "gsplat_stats": "results/truck_gsplat_7k/stats/val_step6999.json",
+  "nb_metrics": null,
+  "min_frustum": 0.05,
+  "force": false,
+  "device": "cuda"
+ },
+ "env": {
+  "python": "3.10.22",
+  "torch": "2.8.0+cu128",
+  "cuda": "12.8",
+  "host": "pop-os",
+  "gpu": "NVIDIA GeForce RTX 5070 Ti",
+  "gpu_mem_gb": 15.4,
+  "gsplat": "1.5.3"
+ },
+ "checks": {
+  "frustum_median_visible": 0.32751500606536865,
+  "gt_size_matches_camera": true,
+  "psnr_sane": true,
+  "matches_gsplat": true
+ },
+ "scene": {
+  "path": "results/truck_gsplat_7k/ckpts/ckpt_6999_rank0.pt",
+  "num_gaussians": 2052446,
+  "sh_degree": 3,
+  "size_mb_uncompressed": 509.0,
+  "file_mb": 484.4,
+  "load_s": 0.23,
+  "opacity_lt_0005": 0.0016512005822733045
+ },
+ "cameras": {
+  "source": "results/truck_gsplat_7k/cameras.json",
+  "total": 251,
+  "split": "test",
+  "n_views": 32,
+  "size": [
+   979,
+   546
+  ],
+  "have_gt": true
+ },
+ "timing": {
+  "render_s_per_view": 0.0151,
+  "peak_gpu_mem_gb": 2.06
+ },
+ "metrics_vs_gt": {
+  "psnr": 23.829254984855652,
+  "psnr_std": 1.1638951854470423,
+  "ssim": 0.852672878652811,
+  "ssim_std": 0.021575412186130943,
+  "lpips": 0.13395889196544886,
+  "lpips_std": 0.02099792676242629
+ },
+ "crosschecks": {
+  "gsplat": {
+   "path": "results/truck_gsplat_7k/stats/val_step6999.json",
+   "reference": {
+    "psnr": 23.826797485351562,
+    "ssim": 0.8526089191436768,
+    "lpips": 0.13399791717529297
+   },
+   "diff_ours_minus_ref": {
+    "psnr": 0.0025,
+    "ssim": 0.0001,
+    "lpips": -0.0
+   }
+  }
+ }
+}
