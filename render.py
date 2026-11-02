@@ -87,10 +87,15 @@ def render_views(splats, cams: Cameras, indices=None, *, batch_size=8,
     chunks = []
     for s in range(0, len(indices), batch_size):
         e = min(s + batch_size, len(indices))
-        colors, _, _ = _rasterize(splats, vm[s:e], Ks[s:e], W, H,
-                                  backgrounds=bg.expand(e - s, 3),
-                                  near=near, far=far, rasterize_mode=rasterize_mode)
-        img = colors[..., :3].clamp_(0, 1)
+        # Composite the background ourselves: gsplat 1.5.3 asserts on per-camera `backgrounds`
+        # when packed=True (it checks against the packed shape). Rendering on black and adding
+        # (1 - alpha) * bg is exactly what the rasterizer does internally.
+        colors, alphas, _ = _rasterize(splats, vm[s:e], Ks[s:e], W, H,
+                                       near=near, far=far, rasterize_mode=rasterize_mode)
+        img = colors[..., :3]
+        if bool((bg != 0).any()):
+            img = img + (1 - alphas) * bg
+        img = img.clamp_(0, 1)
         chunks.append(img.to(out_device, dtype or img.dtype))
     return torch.cat(chunks, dim=0)
 

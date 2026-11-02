@@ -18,9 +18,20 @@ set -euo pipefail
 
 ENV_NAME=${ENV_NAME:-gsprune}
 PY=${PY:-3.10}
-TORCH=${TORCH:-2.4.1}
-TORCHVISION=${TORCHVISION:-0.19.1}
-CU=${CU:-cu124}                 # must be <= the CUDA version nvidia-smi reports
+# Blackwell GPUs (compute capability >= 12.0, e.g. RTX 50xx) have no kernels in torch 2.4/cu124:
+# they need torch >= 2.7 built with cu128. There are no prebuilt gsplat wheels for these, so gsplat
+# JIT-compiles (nvcc >= 12.8 required; installed below via conda).
+GPU_CC=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' ')
+if [ "${GPU_CC%%.*}" -ge 12 ] 2>/dev/null; then
+  DEF_TORCH=2.8.0; DEF_TV=0.23.0; DEF_CU=cu128
+else
+  DEF_TORCH=2.4.1; DEF_TV=0.19.1; DEF_CU=cu124
+fi
+# Compile kernels only for this GPU (conda's activate scripts clobber $CC, hence GPU_CC).
+[ -n "$GPU_CC" ] && export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-$GPU_CC}"
+TORCH=${TORCH:-$DEF_TORCH}
+TORCHVISION=${TORCHVISION:-$DEF_TV}
+CU=${CU:-$DEF_CU}               # must be <= the CUDA version nvidia-smi reports
 GSPLAT=${GSPLAT:-1.5.3}
 WITH_TRAINER=${WITH_TRAINER:-1}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -29,6 +40,7 @@ echo "== GPU"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv || { echo "nvidia-smi failed: no NVIDIA driver?"; exit 1; }
 
 echo "== Python env"
+set +u   # conda's activate.d hooks (e.g. cuda-nvcc) reference unset variables
 if command -v conda >/dev/null 2>&1; then
   eval "$(conda shell.bash hook)"
   conda env list | grep -qE "^${ENV_NAME}\s" || conda create -y -n "$ENV_NAME" "python=$PY"
@@ -54,6 +66,16 @@ else
   nvcc --version | tail -1
 fi
 
+# conda's cuda-toolkit keeps headers/libs under targets/x86_64-linux, which torch's extension
+# builder (CUDA_HOME/include) doesn't search -> point the compilers there, and persist it in the
+# env so every later shell (trainer, VACC-style reruns) builds the same way.
+if [ -n "${CONDA_PREFIX:-}" ] && [ -d "$CONDA_PREFIX/targets/x86_64-linux/include" ]; then
+  T="$CONDA_PREFIX/targets/x86_64-linux"
+  export CUDA_HOME="$CONDA_PREFIX" CPATH="$T/include${CPATH:+:$CPATH}" LIBRARY_PATH="$T/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
+  conda env config vars set CUDA_HOME="$CUDA_HOME" CPATH="$CPATH" LIBRARY_PATH="$LIBRARY_PATH" \
+    ${TORCH_CUDA_ARCH_LIST:+TORCH_CUDA_ARCH_LIST="$TORCH_CUDA_ARCH_LIST"} >/dev/null
+fi
+set -u
 echo "== PyTorch $TORCH ($CU)"
 pip install "torch==$TORCH" "torchvision==$TORCHVISION" --index-url "https://download.pytorch.org/whl/$CU"
 
@@ -69,13 +91,16 @@ else
 fi
 
 echo "== project deps"
-pip install plyfile pillow "numpy<2" "torchmetrics[image]" ninja
+pip install plyfile pillow "numpy<2" "torchmetrics[image]" ninja pytest
 
 if [ "$WITH_TRAINER" = "1" ]; then
   echo "== gsplat trainer (examples @ v$GSPLAT)"
   mkdir -p "$ROOT/ext"
   [ -d "$ROOT/ext/gsplat" ] || git clone --depth 1 --branch "v$GSPLAT" https://github.com/nerfstudio-project/gsplat.git "$ROOT/ext/gsplat"
-  pip install -r "$ROOT/ext/gsplat/examples/requirements.txt"
+  # fused-ssim / fused-bilagrid import torch in setup.py -> must build against the installed torch
+  # (and only for this GPU's architecture, which keeps the nvcc builds short).
+  pip install setuptools wheel
+  pip install --no-build-isolation -r "$ROOT/ext/gsplat/examples/requirements.txt"
 fi
 
 # Persistent kernel cache: compile once, reuse (also do this on the VACC).

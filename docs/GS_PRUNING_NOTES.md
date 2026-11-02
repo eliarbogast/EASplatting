@@ -136,12 +136,13 @@ implementation everywhere** (inside the EA and in final tables).
 - Learned perceptual distance (lower = better). Every 3DGS paper reports
   **PSNR / SSIM / LPIPS**; you'll need it for comparison tables.
 - State the backbone (VGG vs. AlexNet — papers differ; 3DGS uses VGG).
-- Input convention matters too: the Inria repo and NerfBaselines feed [0, 1] images to
-  LPIPS without rescaling to [-1, 1]. `metrics.py` default (`vgg`) matches that;
-  `alex` matches gsplat's trainer eval. NerfBaselines notes that many papers evaluated on
+- Input convention matters too: the Inria repo feeds [0, 1] images to LPIPS without
+  rescaling to [-1, 1] (`vgg-raw` in `metrics.py`; bonsai 0.207). NerfBaselines rescales
+  properly (`vgg`, the default; 0.262 here vs 0.254 published), and `alex` matches both
+  gsplat's trainer eval and NerfBaselines' `lpips`. Measured on bonsai, 2026-11-02. NerfBaselines notes that many papers evaluated on
   full-res images they downscaled themselves rather than the official downscaled set
-  (worth ~0.5 dB PSNR); that likely explains much of the paper-vs-NerfBaselines LPIPS
-  gap (0.214 vs 0.257) too.
+  (worth ~0.5 dB PSNR); that likely explains part of the paper-vs-NerfBaselines LPIPS
+  gap (0.214 vs 0.257) too, alongside the raw-vs-rescaled input difference above.
 - Slower than PSNR/SSIM; fine for final evaluation, optional inside the EA.
 
 ### 4.4 Size & speed

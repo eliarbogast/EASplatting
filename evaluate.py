@@ -76,12 +76,13 @@ def _reference_value(d, key):
     return None
 
 
-def crosscheck(report, path, label, lpips_net, use_lpips, hint, psnr_tol=0.05, ssim_tol=0.002):
+def crosscheck(report, path, label, lpips_net, use_lpips, hint, psnr_tol=0.05, ssim_tol=0.002, lpips_tol=0.01):
     """Compare our mean metrics with a reference json (gsplat stats/val_*.json or NerfBaselines <scene>.json)."""
     ref = json.loads(Path(path).read_text())
     mine = report["metrics_vs_gt"]
     pairs = {"psnr": "psnr", "ssim": "ssim"}
-    if use_lpips:
+    # "vgg-raw" (Inria convention) is not comparable with either reference, so it is not checked.
+    if use_lpips and lpips_net != "vgg-raw":
         # NerfBaselines: "lpips" = AlexNet, "lpips_vgg" = VGG. gsplat stats: "lpips" = whatever it ran (alex default).
         pairs["lpips"] = "lpips_vgg" if (lpips_net == "vgg" and _reference_value(ref, "lpips_vgg") is not None) else "lpips"
     refv = {k: _reference_value(ref, rk) for k, rk in pairs.items()}
@@ -91,7 +92,8 @@ def crosscheck(report, path, label, lpips_net, use_lpips, hint, psnr_tol=0.05, s
     if not diff:
         print(f"!! Couldn't find psnr/ssim in {path}; inspect the file's keys.")
         return
-    ok = abs(diff.get("psnr", 0)) < psnr_tol and abs(diff.get("ssim", 0)) < ssim_tol
+    ok = (abs(diff.get("psnr", 0)) < psnr_tol and abs(diff.get("ssim", 0)) < ssim_tol
+          and abs(diff.get("lpips", 0)) < lpips_tol)
     report["checks"][f"matches_{label}"] = ok
     if not ok:
         print(f"!! Differs from {label}. {hint}")
@@ -116,7 +118,7 @@ def main():
     ap.add_argument("--k", type=int, default=None, help="k evenly spaced views from the split")
     ap.add_argument("--background", type=float, nargs=3, default=[0.0, 0.0, 0.0])
     ap.add_argument("--rasterize-mode", default="classic", choices=["classic", "antialiased"])
-    ap.add_argument("--lpips-net", default="vgg", choices=["vgg", "alex"])
+    ap.add_argument("--lpips-net", default="vgg", choices=["vgg", "vgg-raw", "alex"])
     ap.add_argument("--no-lpips", action="store_true")
     ap.add_argument("--batch-size", type=int, default=4)
     ap.add_argument("--out", required=True)
@@ -281,7 +283,7 @@ def main():
         if args.nb_metrics:
             crosscheck(report, args.nb_metrics, "nerfbaselines", args.lpips_net, use_lpips,
                        hint="NB protocol: --split test, official images_4 (outdoor) / images_2 (indoor), "
-                            "--lpips-net vgg. Small diffs (<0.1 dB) can come from rasterizer differences.",
+                            "--lpips-net vgg (not vgg-raw). Small diffs (<0.1 dB) can come from rasterizer differences.",
                        psnr_tol=0.1, ssim_tol=0.003)
 
     # -------------------------------------------------------------- write

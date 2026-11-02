@@ -49,6 +49,8 @@ def rasterization(means, quats, scales, opacities, colors, viewmats, Ks, width, 
     img = img.view(C, height, width, D)
     alpha = alpha.view(C, height, width, 1).clamp(max=1)
     if backgrounds is not None:
+        # real gsplat 1.5.3 rejects per-camera backgrounds when packed=True (shape check vs packed dims)
+        assert not packed, "gsplat 1.5.3 asserts on `backgrounds` with packed=True"
         img = img + backgrounds[:, None, None, :] * (1 - alpha)
     radii = (vis.long() * 3)[..., None].expand(C, N, 2).to(torch.int32)
     return img, alpha, {"radii": radii}

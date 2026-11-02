@@ -31,8 +31,10 @@ background (metrics, fitness design, baselines, pitfalls); `docs/LOCAL_PIPELINE.
 - Split: name-sorted cameras, every 8th = test (llffhold 8). Evolve on train views only;
   report on test views.
 - Benchmark protocol = NerfBaselines Mip-NeRF 360: official `images_4` (outdoor) /
-  `images_2` (indoor), LPIPS-VGG with [0,1] inputs (`metrics.py` default `vgg`).
-  `--lpips-net alex` only when cross-checking gsplat's own eval.
+  `images_2` (indoor), LPIPS-VGG with inputs rescaled to [-1,1]
+  (`metrics.py` default `vgg`, `normalize=True`; verified against NB's published bonsai numbers).
+  `--lpips-net alex` only when cross-checking gsplat's own eval; `vgg-raw` (Inria's unscaled
+  convention, ~0.05 lower) only to compare with paper tables, never mixed with `vgg`.
 - Same background color for baseline and pruned renders (black for real scenes).
 - Pin gsplat **1.5.3** (latest release); `ext/gsplat` examples must be the same tag.
 

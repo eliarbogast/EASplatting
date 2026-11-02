@@ -10,15 +10,39 @@ that produced this code.
 | `gs_loader.py` | done; round-trip tested; PLY layout matches gsplat's own loader/exporter |
 | `cameras.py` | done; COLMAP bin/txt, Inria + exported `cameras.json`, Blender; tested on synthetic scenes |
 | `render.py` | done; tested with fake rasterizer (batching, empty scene, cache, contributions) |
-| `metrics.py` | done; torchmetrics PSNR/SSIM tested; **LPIPS untested** (weights couldn't download in the cloud) |
+| `metrics.py` | done; PSNR/SSIM/LPIPS-alex verified on GPU; LPIPS-VGG matches NB convention (below) |
 | `evaluate.py` | done; end-to-end test with fake rasterizer on CPU |
-| `export_gsplat_cameras.py` | written against gsplat v1.5.3 `Parser`; **untested** (needs pycolmap + data) |
+| `export_gsplat_cameras.py` | verified on truck (trainer eval matches ours) |
 | `scripts/fetch_zip_members.py` | done; tested on local zips incl. zip64 |
-| `scripts/get_data.sh`, `setup_local.sh`, `train_gsplat.sh` | written; syntax-checked; **never run** (cloud had no GPU / no access to data hosts) |
+| `scripts/get_data.sh`, `setup_local.sh`, `train_gsplat.sh` | run end-to-end on Eli's machine (bonsai, NB ckpt, tandt, truck 7k); `get_data.sh inria-pretrained` not run |
 | fitness / genome / EA | not started |
 
-**Nothing has run on a real GPU yet.** First job: `docs/LOCAL_PIPELINE.md` steps 0–3 on the
-Linux + NVIDIA machine, fixing whatever breaks.
+**Bring-up done on Eli's machine (RTX 5070 Ti, Blackwell sm_120; 2026-11-02): steps 0–3 pass**
+(details below). The gate for genome/fitness/EA work is met.
+
+### Bring-up results (2026-11-02, torch 2.8.0+cu128, gsplat 1.5.3 JIT, conda env `gsprune`)
+
+- Step 0: env + one-Gaussian render OK (first-call JIT 34 s); 18 CPU tests pass.
+- Step 1: bonsai (`images_2`) + NerfBaselines checkpoint download fine; URL pattern and zip layout
+  assumptions held (`point_cloud/iteration_30000/point_cloud.ply`); NB json has `metrics.{psnr,ssim,lpips,lpips_vgg}`.
+- Step 2 (bonsai, NB 3DGS ckpt, 1,247,650 Gaussians, 37 test views, 1559x1039):
+  frustum 31.9% visible, GT size OK; PSNR 32.235 / SSIM 0.9421 vs NB 32.197 / 0.9412
+  (diff +0.038 dB / +0.0009). Opacity>0.005 prune: 87.9% kept, 60.0 dB vs unpruned.
+  Render 13 ms/view in batch, 436 FPS single view (4.6 GB peak).
+- Step 3 (truck, gsplat 7k steps, 2.05 M Gaussians, 2:16 train): our eval vs trainer's own eval:
+  PSNR 23.829 vs 23.827, SSIM 0.8527 vs 0.8526, LPIPS-alex 0.1340 vs 0.1340. `matches_gsplat: true`.
+
+Fixes made during bring-up: `setup_local.sh` (Blackwell autodetect, `set -u` vs conda hooks, CUDA
+include paths for the conda toolkit, `--no-build-isolation` for fused-ssim/bilagrid, pytest);
+`render.py` (gsplat 1.5.3 rejects per-camera `backgrounds` when `packed=True` -> composite the
+background ourselves; the fake rasterizer now rejects that too).
+
+### LPIPS-VGG convention (resolved 2026-11-02: match NerfBaselines)
+The old default fed raw [0,1] images (Inria-repo style): bonsai test LPIPS-VGG 0.2071 vs
+NerfBaselines' published 0.2538 (alex: 0.1289). Same renders, other conventions: VGG
+`normalize=True` 0.2622, alex `normalize=True` 0.1328, alex raw 0.0701. NB rescales to [-1,1],
+so `metrics.py` `vgg` is now `normalize=True`; `vgg-raw` keeps the Inria convention for
+paper-table comparisons. `evaluate.crosscheck` now enforces LPIPS (tol 0.01) too.
 
 ## Decisions made (and why)
 
@@ -27,7 +51,7 @@ Linux + NVIDIA machine, fixing whatever breaks.
   Inria's `diff-gaussian-rasterization` only needed if we add post-pruning fine-tuning with
   their recipe.
 - **Benchmark: NerfBaselines Mip-NeRF 360 protocol** — official `images_4`/`images_2`,
-  llffhold-8 test split, LPIPS-VGG with [0,1] inputs. Unpruned baseline = NerfBaselines'
+  llffhold-8 test split, LPIPS-VGG with [-1,1]-rescaled inputs. Unpruned baseline = NerfBaselines'
   `gaussian-splatting` checkpoints (trained on train split only; published per-scene
   metrics). Inria's own pretrained models may include test views → only for quick tests.
 - **Local dev scene: bonsai** (indoor, images_2; far fewer Gaussians than the outdoor

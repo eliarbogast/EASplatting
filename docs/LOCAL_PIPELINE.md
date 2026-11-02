@@ -12,6 +12,12 @@ export TORCH_EXTENSIONS_DIR=$PWD/.torch_extensions
 python -m pytest -q tests              # CPU plumbing tests (fake renderer) — should all pass
 ```
 
+Blackwell GPUs (RTX 50xx, compute capability 12.x) are auto-detected: the script switches to
+torch 2.8.0 + cu128, and conda's CUDA 12.8 toolkit (needed because there is no prebuilt gsplat
+wheel for these, so gsplat JIT-compiles for sm_120). It also persists `CUDA_HOME`, `CPATH`,
+`LIBRARY_PATH` and `TORCH_CUDA_ARCH_LIST` in the conda env. Needs conda (Miniforge is fine) and
+no root. torch 2.4.1+cu124 has no sm_120 kernels, so don't override `CU` on these cards.
+
 The script ends with a one-Gaussian render on the GPU. If gsplat came from PyPI (no
 prebuilt wheel for your torch/CUDA), the first call JIT-compiles CUDA kernels (needs
 `nvcc`, 5–15 min, cached afterwards). Override versions with env vars, e.g.
@@ -51,8 +57,8 @@ python evaluate.py --scene $NB/point_cloud.ply --cameras data/360_v2/bonsai --im
 Pass criteria (all in `results/eval_bonsai_nb3dgs/report.json`):
 - `checks.frustum_median_visible` well above 5% (tens of %).
 - `checks.gt_size_matches_camera: true`.
-- Test PSNR/SSIM/LPIPS-VGG within ~0.1 dB / 0.003 / 0.01 of NerfBaselines' numbers
-  (`checks.matches_nerfbaselines`). This is the strongest evidence the whole chain
+- Test PSNR/SSIM within ~0.1 dB / 0.003 of NerfBaselines' numbers
+  (`checks.matches_nerfbaselines`; tolerances 0.1 dB / 0.003 / 0.01). This is the strongest evidence the whole chain
   (loader, cameras, renderer, metrics, protocol) is right.
 - `compare/*.png` look right: GT | render | error×5.
 - `prune_demo`: kept fraction and PSNR vs unpruned (first taste of the trade-off).
@@ -86,5 +92,5 @@ evals/s ≈ 1 / (n_fitness_views × render_s_per_view).
 | PSNR a bit low, images look fine | background mismatch (NeRF-Synthetic: white), or `--rasterize-mode` vs how it was trained |
 | GT size warning | `--images` doesn't match the resolution the scene was evaluated at |
 | first render takes minutes | gsplat JIT compile (once); keep `TORCH_EXTENSIONS_DIR` set |
-| LPIPS off vs a paper | different LPIPS convention/net; we follow NerfBaselines (VGG, [0,1] inputs) |
+| LPIPS off vs a paper | different LPIPS convention/net; we follow NerfBaselines (VGG, inputs rescaled to [-1,1]); Inria-repo/paper tables feed raw [0,1] and read ~0.05 lower (`--lpips-net vgg-raw`) |
 | truck test PSNR ≫ 25 dB | Inria pretrained model saw the test views; use NB checkpoints for honest numbers |

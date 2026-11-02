@@ -12,11 +12,14 @@ Conventions
   * SSIM: torchmetrics default (11x11 Gaussian window, sigma 1.5, data_range 1).
     The Inria repo's own ssim() differs in the 3rd-4th decimal; don't mix them.
   * LPIPS:
-      "vgg"  (default) net_type="vgg", normalize=False — reproduces the Inria
-             3DGS repo / paper numbers (it feeds [0,1] images to LPIPS-VGG
-             without rescaling to [-1,1]). Use for comparison with papers.
-      "alex" net_type="alex", normalize=True — gsplat simple_trainer's default.
-             Use this when cross-checking against gsplat's own eval stats.
+      "vgg"  (default) net_type="vgg", normalize=True ([0,1] inputs rescaled to
+             [-1,1] as LPIPS expects) — reproduces NerfBaselines' `lpips_vgg`
+             (bonsai: 0.262 here vs 0.254 published; the raw variant gives 0.207).
+      "alex" net_type="alex", normalize=True — gsplat simple_trainer's default and
+             NerfBaselines' `lpips`. Use when cross-checking gsplat's own eval stats.
+      "vgg-raw" net_type="vgg", normalize=False — the Inria 3DGS repo convention
+             (feeds [0,1] images unscaled; numbers come out LOWER). Only for
+             comparing against paper tables that used it; never mix with "vgg".
     First use downloads backbone weights (torchvision), so needs internet once.
 
     m = ImageMetrics(device="cuda", lpips_net="vgg")
@@ -55,11 +58,13 @@ class ImageMetrics:
         if self._lpips is None:
             from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
             if self.lpips_net == "vgg":
+                m = LearnedPerceptualImagePatchSimilarity(net_type="vgg", normalize=True)
+            elif self.lpips_net == "vgg-raw":
                 m = LearnedPerceptualImagePatchSimilarity(net_type="vgg", normalize=False)
             elif self.lpips_net == "alex":
                 m = LearnedPerceptualImagePatchSimilarity(net_type="alex", normalize=True)
             else:
-                raise ValueError(f"lpips_net must be 'vgg' or 'alex', got {self.lpips_net!r}")
+                raise ValueError(f"lpips_net must be 'vgg', 'vgg-raw' or 'alex', got {self.lpips_net!r}")
             self._lpips = m.to(self.device).eval()
         return self._lpips
 

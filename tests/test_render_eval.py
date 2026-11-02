@@ -112,3 +112,17 @@ def test_evaluate_refuses_misaligned_cameras(tmp_path, scene_and_cams):
                         str(tmp_path / "far.ply"), "--cameras", str(d), "--images", "images_2",
                         "--no-lpips", "--out", str(tmp_path / "e")], capture_output=True, text=True, env=env)
     assert r.returncode == 1 and "different frames" in r.stdout
+
+
+@pytest.mark.parametrize("lpips_ref, lpips_net, ok", [
+    (0.2538, "vgg", True),        # within 0.01 of ours (0.2622 would be the real-bonsai value: 0.008 off)
+    (0.30, "vgg", False),         # LPIPS drift now fails the check
+    (0.30, "vgg-raw", True),      # raw (Inria) convention is not comparable, so LPIPS is skipped
+])
+def test_crosscheck_enforces_lpips(tmp_path, lpips_ref, lpips_net, ok):
+    from evaluate import crosscheck
+    ref = tmp_path / "nb.json"
+    ref.write_text(json.dumps({"metrics": {"psnr": 30.0, "ssim": 0.9, "lpips_vgg": lpips_ref}}))
+    report = {"metrics_vs_gt": {"psnr": 30.01, "ssim": 0.901, "lpips": 0.2538}, "checks": {}}
+    crosscheck(report, ref, "nerfbaselines", lpips_net, True, hint="", psnr_tol=0.1, ssim_tol=0.003)
+    assert report["checks"]["matches_nerfbaselines"] is ok
