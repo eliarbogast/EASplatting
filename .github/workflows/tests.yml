@@ -10,7 +10,9 @@ jobs:
           python-version: "3.10"
       - name: Install (CPU torch + project deps; fake gsplat comes from tests/)
         run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          # torch and torchvision must come from the same index: torchmetrics pulls torchvision, and a
+          # PyPI torchvision next to a CPU-index torch fails with "operator torchvision::nms does not exist".
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
       - name: Run tests
         run: python -m pytest -q tests
