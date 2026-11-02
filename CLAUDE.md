@@ -4,6 +4,9 @@ Evolving post-hoc pruning thresholds for pretrained 3D Gaussian Splatting scenes
 (EA class project, Eli Arbogast + Areeb). A genome of thresholds → keep-mask over
 Gaussians → render with gsplat → compare to unpruned renders → fitness. No retraining.
 
+**Current phase: local gsplat bring-up.** Don't implement genome/fitness/EA code until a real
+gsplat run on Eli's Linux GPU machine passes `evaluate.py`'s checks (see `HANDOFF.md`).
+
 Read `HANDOFF.md` for current status and next steps; `docs/GS_PRUNING_NOTES.md` for
 background (metrics, fitness design, baselines, pitfalls); `docs/LOCAL_PIPELINE.md` to run it.
 

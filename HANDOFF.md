@@ -54,14 +54,60 @@ Linux + NVIDIA machine, fixing whatever breaks.
 ## Next steps
 
 1. Local bring-up (`docs/LOCAL_PIPELINE.md` 0–3). Commit fixes. Save `report.json`s.
+
+> **Gate (Eli, 2026-11-02): don't start steps 2+ (genome / fitness / EA) until step 1 has
+> produced a successful real gsplat run on Eli's Linux + NVIDIA machine** — i.e. the
+> bonsai `report.json` passes its checks (frustum, GT size, matches NerfBaselines). Until
+> then, work only on bring-up fixes, tests and docs. The plan below is context, not a to-do.
+
 2. `genome.py`: gene bounds in transformed space (log scale, logit/log opacity); decode → mask.
    Use `python gs_loader.py <ply>` percentiles to set bounds.
 3. `fitness.py`: mask → render fitness views (train split subset) → ΔPSNR vs cached baselines
    (`metrics.psnr_fast`) + size term. Normalize terms (see notes §5); short-circuit empty masks.
+   Expose fitness view count and render scale as settings (see "Compute plan" below).
 4. Random search with the same evaluation budget first (validates the loop), then the GA
    (tournament + SBX/BLX + Gaussian mutation + elitism).
-5. VACC: one process per EA run, SLURM array over (scene × method × seed); persistent
-   `TORCH_EXTENSIONS_DIR`.
+5. VACC: one process per (scene × method), running seeds sequentially; SLURM array over
+   those; persistent `TORCH_EXTENSIONS_DIR`.
+
+## Compute plan (context for steps 2–5; decided 2026-11-02)
+
+**Datasets by purpose**
+- Dev/debug of the EA loop: NeRF-Synthetic (e.g. lego; a few 100k Gaussians, small images)
+  or a 7k-step gsplat truck — whole EA runs in seconds. Not for results.
+- Main results: Mip-NeRF 360, 3–4 scenes, indoor first (bonsai, counter), then garden /
+  bicycle. This keeps comparability with LP-3DGS, Speedy-Splat, PUP-3DGS, LightGaussian.
+- Optional secondary table: all 8 NeRF-Synthetic scenes (cheap; LP-3DGS reports it).
+  Don't make it the main benchmark — no unbounded background, which is where scene-specific
+  thresholds should matter most.
+
+**Budget estimate** (replace with measured `timing.render_s_per_view` from `report.json`)
+- 3DGS on Mip-NeRF 360 ≈ 134 FPS avg at eval resolution (Speedy-Splat paper) ≈ 7.5 ms/view.
+- Fitness = ~8 train views at reduced resolution ≈ 20–60 ms → 15–50 evals/s; faster as
+  individuals prune more.
+- Run = pop 32 × 50 gens = 1,600 evals ≈ 0.5–2 min (3–6 genes don't need more).
+- Study = 4 scenes × 4 methods × 30 seeds = 480 runs ≈ 4–16 GPU-hours.
+
+**Making evaluations cheap (by expected impact)**
+1. Cheap fitness, full final eval: fixed 8–16 TRAIN views at reduced resolution during
+   evolution; only final/best genomes evaluated at protocol resolution on TEST views.
+2. Validate the shortcut: ~50 random genomes, cheap vs full fitness (all train views, full
+   res); require Spearman ρ ≳ 0.95. Report it (one plot).
+3. PSNR/MSE only in the loop (`metrics.psnr_fast` vs cached baselines). SSIM/LPIPS at final
+   eval only (`fused-ssim` is available if SSIM is wanted in-loop).
+4. Scene loaded + activated once per process; baselines cached; run several seeds per
+   process. Masks are one comparison per Gaussian — negligible.
+5. All fitness views of an individual in one `render_views` call; tune `batch_size`.
+6. Fitness cache keyed on (rounded) genome — elites/duplicates aren't re-rendered.
+7. Advanced, after the basic loop works: render several individuals per call. gsplat 1.5.3
+   culls Gaussians with opacity < 1/255 at projection (checked in
+   `ProjectionEWA3DGSFused.cu`) and `opacities` accepts a batch dim `[B, N]`, so pruning can
+   be encoded as zeroed opacities for B individuals × C cameras. Memory-hungry; most useful
+   on small scenes. FPS must still be measured on an actually pruned scene.
+8. Optional multi-fidelity: score everyone on 4 views, re-score the top quarter on the full
+   fitness set — only if evals dominate.
+9. Don't rotate fitness views per generation (noisy, elites not comparable); guard against
+   overfitting with held-out test views instead.
 
 ## Open questions for Eli / Areeb
 
