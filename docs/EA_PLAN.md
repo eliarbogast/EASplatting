@@ -13,6 +13,8 @@ NerfBaselines protocol.
 LightGaussian). Optional secondary table: the 8 NeRF-Synthetic scenes (cheap, but no unbounded
 background, which is where scene-specific thresholds should matter most).
 
+**Cluster:** see `docs/CLUSTER.md` (VACC GPUs, env, preemption, one GPU SKU for timings).
+
 **Estimate** (measured: bonsai renders in ~13 ms/view at 1559x1039, from `report.json`).
 Fitness = ~8 train views at reduced resolution = 20-60 ms = 15-50 evals/s, faster as individuals
 prune more. A run of pop 32 x 50 gens = 1,600 evals = 0.5-2 min. A study of 4 scenes x 4 methods

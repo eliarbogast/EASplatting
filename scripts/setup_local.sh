@@ -4,7 +4,12 @@
 #   bash scripts/setup_local.sh                 # conda env "gsprune" (or .venv if no conda)
 #   WITH_TRAINER=0 bash scripts/setup_local.sh  # skip gsplat's trainer (render/eval pretrained scenes only)
 #
-# Knobs (env vars): ENV_NAME, PY, TORCH, TORCHVISION, CU, GSPLAT, WITH_TRAINER
+# Knobs (env vars): ENV_NAME, PY, TORCH, TORCHVISION, CU, GSPLAT, WITH_TRAINER,
+#                   TORCH_CUDA_ARCH_LIST (e.g. "8.0;9.0;12.0"), NO_GPU_OK=1, PRINT_CONFIG=1
+#
+# On a cluster login node (no GPU): NO_GPU_OK=1 TORCH_CUDA_ARCH_LIST="8.0;9.0;12.0" bash scripts/setup_local.sh
+# builds the env without a GPU; then run scripts/smoke_gsplat.py once on a GPU node to compile
+# gsplat's kernels into the shared cache. See docs/CLUSTER.md.
 #
 # What it installs
 #   torch + torchvision (CUDA build)      -> download.pytorch.org
@@ -18,17 +23,33 @@ set -euo pipefail
 
 ENV_NAME=${ENV_NAME:-gsprune}
 PY=${PY:-3.10}
-# Blackwell GPUs (compute capability >= 12.0, e.g. RTX 50xx) have no kernels in torch 2.4/cu124:
-# they need torch >= 2.7 built with cu128. There are no prebuilt gsplat wheels for these, so gsplat
-# JIT-compiles (nvcc >= 12.8 required; installed below via conda).
-GPU_CC=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' ')
-if [ "${GPU_CC%%.*}" -ge 12 ] 2>/dev/null; then
-  DEF_TORCH=2.8.0; DEF_TV=0.23.0; DEF_CU=cu128
-else
-  DEF_TORCH=2.4.1; DEF_TV=0.19.1; DEF_CU=cu124
+# torch 2.8 + cu128 is the default everywhere: its wheels carry kernels for sm_70 through sm_120
+# (Volta ... Hopper ... Blackwell, incl. RTX 50xx), so one env serves a mixed-GPU cluster. The old
+# torch 2.4/cu124 stack is only chosen when a GPU is present and its driver is older than CUDA 12.8.
+# There are no prebuilt gsplat wheels for cu128, so gsplat JIT-compiles on first use (nvcc >= 12.8,
+# installed below via conda).
+HAVE_GPU=0; GPU_CC=""; DRV_CUDA=""
+if nvidia-smi >/dev/null 2>&1; then
+  HAVE_GPU=1
+  GPU_CC=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' ')
+  DRV_CUDA=$(nvidia-smi 2>/dev/null | sed -n 's/.*CUDA Version: *\([0-9]*\.[0-9]*\).*/\1/p' | head -1)
 fi
-# Compile kernels only for this GPU (conda's activate scripts clobber $CC, hence GPU_CC).
-[ -n "$GPU_CC" ] && export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-$GPU_CC}"
+if [ "$HAVE_GPU" = 1 ] && [ -n "$DRV_CUDA" ] && [ "$(printf '%s\n12.8\n' "$DRV_CUDA" | sort -V | head -1)" != "12.8" ]; then
+  DEF_TORCH=2.4.1; DEF_TV=0.19.1; DEF_CU=cu124      # driver older than CUDA 12.8
+else
+  DEF_TORCH=2.8.0; DEF_TV=0.23.0; DEF_CU=cu128
+fi
+# Which GPU architectures to compile for. Only an EXPLICIT TORCH_CUDA_ARCH_LIST is persisted in the
+# conda env; the auto-detected one is used for this script's builds only (a login node or a
+# different GPU type later must not inherit it). conda's activate scripts clobber $CC, hence GPU_CC.
+ARCH_FROM_USER=${TORCH_CUDA_ARCH_LIST:+1}
+if [ -z "${TORCH_CUDA_ARCH_LIST:-}" ]; then
+  if [ -n "$GPU_CC" ]; then
+    export TORCH_CUDA_ARCH_LIST="$GPU_CC"
+  elif [ "${NO_GPU_OK:-0}" = 1 ]; then
+    echo "!! No GPU here and TORCH_CUDA_ARCH_LIST is unset: set it (e.g. VACC: \"8.0;9.0;12.0\")."; exit 1
+  fi
+fi
 TORCH=${TORCH:-$DEF_TORCH}
 TORCHVISION=${TORCHVISION:-$DEF_TV}
 CU=${CU:-$DEF_CU}               # must be <= the CUDA version nvidia-smi reports
@@ -37,7 +58,15 @@ WITH_TRAINER=${WITH_TRAINER:-1}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
 echo "== GPU"
-nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv || { echo "nvidia-smi failed: no NVIDIA driver?"; exit 1; }
+if [ "$HAVE_GPU" = 1 ]; then
+  nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
+elif [ "${NO_GPU_OK:-0}" = 1 ]; then
+  echo "no GPU on this host (NO_GPU_OK=1): building the env only; run scripts/smoke_gsplat.py on a GPU node later"
+else
+  echo "nvidia-smi failed: no NVIDIA driver? (on a login node without a GPU, use NO_GPU_OK=1 and set TORCH_CUDA_ARCH_LIST)"; exit 1
+fi
+echo "config: torch $TORCH ($CU), arch list '${TORCH_CUDA_ARCH_LIST:-}', gsplat $GSPLAT, trainer=$WITH_TRAINER"
+[ "${PRINT_CONFIG:-0}" = 1 ] && exit 0
 
 echo "== Python env"
 set +u   # conda's activate.d hooks (e.g. cuda-nvcc) reference unset variables
@@ -73,7 +102,7 @@ if [ -n "${CONDA_PREFIX:-}" ] && [ -d "$CONDA_PREFIX/targets/x86_64-linux/includ
   T="$CONDA_PREFIX/targets/x86_64-linux"
   export CUDA_HOME="$CONDA_PREFIX" CPATH="$T/include${CPATH:+:$CPATH}" LIBRARY_PATH="$T/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
   conda env config vars set CUDA_HOME="$CUDA_HOME" CPATH="$CPATH" LIBRARY_PATH="$LIBRARY_PATH" \
-    ${TORCH_CUDA_ARCH_LIST:+TORCH_CUDA_ARCH_LIST="$TORCH_CUDA_ARCH_LIST"} >/dev/null
+    ${ARCH_FROM_USER:+TORCH_CUDA_ARCH_LIST="$TORCH_CUDA_ARCH_LIST"} >/dev/null
 fi
 set -u
 echo "== PyTorch $TORCH ($CU)"
@@ -103,32 +132,20 @@ if [ "$WITH_TRAINER" = "1" ]; then
   pip install --no-build-isolation -r "$ROOT/ext/gsplat/examples/requirements.txt"
 fi
 
-# Persistent kernel cache: compile once, reuse (also do this on the VACC).
-export TORCH_EXTENSIONS_DIR="$ROOT/.torch_extensions"
+# Persistent kernel cache: compile once, reuse (on a cluster, point this at shared storage).
+export TORCH_EXTENSIONS_DIR="${TORCH_EXTENSIONS_DIR:-$ROOT/.torch_extensions}"
 mkdir -p "$TORCH_EXTENSIONS_DIR"
 
-echo "== smoke test: compile/load gsplat kernels and render one Gaussian"
-python - <<'EOF'
-import time, torch, gsplat
-from gsplat import rasterization
-t = time.time()
-d = "cuda"
-img, alpha, meta = rasterization(
-    means=torch.tensor([[0., 0., 3.]], device=d), quats=torch.tensor([[1., 0, 0, 0]], device=d),
-    scales=torch.full((1, 3), 0.3, device=d), opacities=torch.tensor([0.9], device=d),
-    colors=torch.tensor([[1., 0.5, 0.2]], device=d),
-    viewmats=torch.eye(4, device=d)[None], Ks=torch.tensor([[[100., 0, 64], [0, 100., 64], [0, 0, 1]]], device=d),
-    width=128, height=128)
-torch.cuda.synchronize()
-c = img[0, 64, 64].tolist()
-print(f"gsplat {gsplat.__version__} on {torch.cuda.get_device_name()}: center pixel {[round(x, 3) for x in c]} "
-      f"(expect ~[0.9, 0.45, 0.18]); first call took {time.time() - t:.1f}s")
-assert c[0] > 0.5, "render looks wrong"
-EOF
+if [ "$HAVE_GPU" = 1 ]; then
+  echo "== smoke test: compile/load gsplat kernels and render one Gaussian"
+  python "$ROOT/scripts/smoke_gsplat.py"
+else
+  echo "== smoke test skipped (no GPU): run  python scripts/smoke_gsplat.py  on a GPU node to pre-warm the kernel cache"
+fi
 
 cat <<EOF
 
 Done. In new shells run:
   conda activate $ENV_NAME      (or: source .venv/bin/activate)
-  export TORCH_EXTENSIONS_DIR=$ROOT/.torch_extensions
+  export TORCH_EXTENSIONS_DIR=$TORCH_EXTENSIONS_DIR
 EOF

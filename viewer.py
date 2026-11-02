@@ -7,7 +7,9 @@ mask logic and as a way to eyeball what the EA's thresholds do before running it
 
     python viewer.py --scene pretrained/nb/gaussian-splatting/mipnerf360/bonsai/point_cloud.ply \
         --cameras data/360_v2/bonsai --images images_2          # --cameras is optional
-    # then open http://localhost:8080  (SSH: ssh -L 8080:localhost:8080 <host>)
+    # then open http://localhost:8080
+    # Headless / cluster: binds to 127.0.0.1 only; from your laptop run
+    #   ssh -L 8080:<gpu-node>:8080 <login-host>     (or -L 8080:localhost:8080 <host> if you are on the node)
 
 Sliders threshold ACTIVATED values (sigmoid opacity, exp scale), in log10 space; the top/left end
 of each slider is "off" (keeps everything). A Gaussian is kept when ALL conditions pass:
@@ -155,6 +157,9 @@ def main():
     ap.add_argument("--scene", required=True, help="point_cloud.ply or gsplat ckpt .pt")
     ap.add_argument("--cameras", default=None, help="optional: COLMAP dir / cameras.json (camera jump + start pose)")
     ap.add_argument("--images", default="images", help="COLMAP image folder (only used to size the cameras)")
+    ap.add_argument("--host", default="127.0.0.1",
+                    help="bind address; localhost by default so a shared cluster node doesn't expose the "
+                         "viewer to the network (use SSH port forwarding); 0.0.0.0 to expose it")
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--out", default="results/viewer", help="where the save buttons write")
     args = ap.parse_args()
@@ -167,7 +172,7 @@ def main():
     act = activate(raw)
     state = ViewerState(raw, act, device)
     n = state.n_total
-    print(f"Loaded {n:,} Gaussians (SH degree {act['sh_degree']}); open http://localhost:{args.port}")
+    print(f"Loaded {n:,} Gaussians (SH degree {act['sh_degree']}); serving on {args.host}:{args.port}")
 
     cams = names = None
     if args.cameras:
@@ -191,7 +196,7 @@ def main():
         h.psnr.value = "-" if info["psnr"] is None else f"{info['psnr']:.2f} dB"
         return img.cpu().numpy()
 
-    server = viser.ViserServer(port=args.port)
+    server = viser.ViserServer(host=args.host, port=args.port)
     viewer = nerfview.Viewer(server=server, render_fn=render_fn, mode="rendering")
     gui, b = server.gui, state.bounds
 

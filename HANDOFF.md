@@ -37,4 +37,4 @@ the way are in [`docs/bring_up/README.md`](docs/bring_up/README.md). The gate fo
 4. Random search with the same evaluation budget first (validates the loop), then the GA
    (tournament + SBX/BLX + Gaussian mutation + elitism).
 5. VACC: one process per (scene x method), seeds sequentially; SLURM array over those; persistent
-   `TORCH_EXTENSIONS_DIR`.
+   `TORCH_EXTENSIONS_DIR`. Checklist and VACC hardware: [`docs/CLUSTER.md`](docs/CLUSTER.md).

@@ -88,7 +88,7 @@ Sliders threshold opacity, max scale and max anisotropy (log10; the end marked "
 everything). Live readout of kept count, estimated size, render time and the current view's PSNR vs
 the unpruned render. View modes: pruned, unpruned, removed only (what the thresholds delete) and
 error x5. Buttons save the thresholds (`results/viewer/thresholds.json`) or the pruned `.ply`.
-`--cameras` adds a jump-to-camera dropdown. The opacity-0.005 preset reproduces `evaluate.py`'s
+`--cameras` adds a jump-to-camera dropdown. It binds to 127.0.0.1 only (`--host 0.0.0.0` to expose it). The opacity-0.005 preset reproduces `evaluate.py`'s
 87.9% kept on bonsai.
 
 ## 5. Record the machine

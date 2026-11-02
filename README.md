@@ -33,6 +33,7 @@ Datasets, checkpoints and results are downloaded or generated locally and are gi
 |---|---|
 | Run the pipeline, evaluate a scene, train a splat, use the viewer | [`docs/LOCAL_PIPELINE.md`](docs/LOCAL_PIPELINE.md) |
 | Know what to build next, open questions, compute budget, plots | [`docs/EA_PLAN.md`](docs/EA_PLAN.md) |
+| Prepare to run on the UVM VACC (GPUs, env, jobs, checklist) | [`docs/CLUSTER.md`](docs/CLUSTER.md) |
 | See current status and the decisions already made | [`HANDOFF.md`](HANDOFF.md) |
 | Look up background (metrics, fitness design, baselines, pitfalls) | [`docs/GS_PRUNING_NOTES.md`](docs/GS_PRUNING_NOTES.md) (long; reference) |
 | See what the first real-GPU runs produced | [`docs/bring_up/`](docs/bring_up/README.md) |
@@ -49,5 +50,5 @@ Datasets, checkpoints and results are downloaded or generated locally and are gi
 | `evaluate.py` | scene + cameras -> renders -> metrics -> `report.json` (with cross-checks) |
 | `viewer.py` | interactive threshold-pruning viewer (viser) |
 | `export_gsplat_cameras.py` | cameras in gsplat-trainer's normalized frame |
-| `scripts/` | env setup, data download, gsplat training |
+| `scripts/` | env setup (also GPU-less cluster login nodes), data download, gsplat training, kernel pre-warm, LPIPS weight prefetch |
 | `tests/` | CPU tests with a fake gsplat |
