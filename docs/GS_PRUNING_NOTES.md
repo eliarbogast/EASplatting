@@ -1,6 +1,7 @@
 # Evolving Pruning Thresholds for 3D Gaussian Splatting — Developer Notes
 
-Reference notes for the EA-based 3DGS pruning project (Eli & Areeb). Covers file
+Long reference doc (skim the section you need; start at `README.md`). Notes for the EA-based
+3DGS pruning project (Eli & Areeb). Covers file
 formats and conventions, metrics, fitness design, genome/operators, baselines,
 experiment protocol, VACC usage, and known pitfalls. Pairs with `gs_loader.py`.
 
@@ -413,6 +414,7 @@ EASplatting/
 ├── metrics.py            # PSNR / SSIM / LPIPS (done; one implementation each)
 ├── evaluate.py           # scene + cameras → renders → metrics → report.json (done)
 ├── export_gsplat_cameras.py  # cameras in gsplat-trainer's normalized frame (done)
+├── viewer.py             # interactive threshold-pruning viewer (done)
 ├── scripts/              # setup_local.sh, get_data.sh, train_gsplat.sh, fetch_zip_members.py
 ├── tests/                # CPU tests with a fake gsplat
 ├── genome.py             # gene bounds, encode/decode, genome → keep-mask

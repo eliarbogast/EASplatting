@@ -4,17 +4,20 @@ Evolving post-hoc pruning thresholds for pretrained 3D Gaussian Splatting scenes
 (EA class project, Eli Arbogast + Areeb). A genome of thresholds → keep-mask over
 Gaussians → render with gsplat → compare to unpruned renders → fitness. No retraining.
 
-**Current phase: local gsplat bring-up.** Don't implement genome/fitness/EA code until a real
-gsplat run on Eli's Linux GPU machine passes `evaluate.py`'s checks (see `HANDOFF.md`).
+**Current phase: implementing the EA** (genome -> fitness -> random search -> GA). The local gsplat
+bring-up is done and verified on Eli's machine (see `docs/bring_up/README.md`).
 
-Read `HANDOFF.md` for current status and next steps; `docs/GS_PRUNING_NOTES.md` for
-background (metrics, fitness design, baselines, pitfalls); `docs/LOCAL_PIPELINE.md` to run it.
+Start at `README.md` (status + doc map). `HANDOFF.md`: decisions and next steps. `docs/EA_PLAN.md`:
+open design questions, compute budget. `docs/GS_PRUNING_NOTES.md`: background (metrics, fitness
+design, baselines, pitfalls). `docs/LOCAL_PIPELINE.md`: how to run things.
 
 ## Layout
 - `gs_loader.py` load/activate/prune/save scenes (Inria PLY, gsplat `.pt`)
 - `cameras.py` COLMAP / Inria `cameras.json` / Blender → `Cameras` (world→camera, OpenCV)
 - `render.py` gsplat wrapper, baseline caching, per-Gaussian contributions, FPS
 - `metrics.py` the ONLY PSNR/SSIM/LPIPS implementation
+- `viewer.py` interactive viser viewer for threshold pruning; `gene_stats`/`keep_mask` = the
+  threshold -> mask logic (reuse it in the genome decoder)
 - `evaluate.py` end-to-end check: scene + cameras → renders → metrics → `report.json`
 - `export_gsplat_cameras.py` cameras in gsplat-trainer's normalized frame
 - `scripts/` env setup, data download, gsplat training, zip range-fetcher

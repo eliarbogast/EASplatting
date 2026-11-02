@@ -77,7 +77,21 @@ python evaluate.py --scene $OUT/ckpts/ckpt_6999_rank0.pt --cameras $OUT/cameras.
 views). Then `STEPS=30000` for a real baseline. Note the gsplat-trained scene lives in a
 normalized world frame — always pair it with `$OUT/cameras.json`, never raw COLMAP.
 
-## 4. Record the machine
+## 4. Look at it: interactive viewer
+
+```bash
+python viewer.py --scene $NB/point_cloud.ply --cameras data/360_v2/bonsai --images images_2
+# open http://localhost:8080   (over SSH: ssh -L 8080:localhost:8080 <host>)
+```
+
+Sliders threshold opacity, max scale and max anisotropy (log10; the end marked "off" keeps
+everything). Live readout of kept count, estimated size, render time and the current view's PSNR vs
+the unpruned render. View modes: pruned, unpruned, removed only (what the thresholds delete) and
+error x5. Buttons save the thresholds (`results/viewer/thresholds.json`) or the pruned `.ply`.
+`--cameras` adds a jump-to-camera dropdown. The opacity-0.005 preset reproduces `evaluate.py`'s
+87.9% kept on bonsai.
+
+## 5. Record the machine
 
 Keep `report.json` from each machine (it records GPU, torch, gsplat versions and timings).
 Compare `timing.render_s_per_view` and `fps_*` with the VACC later to size the EA budget:
