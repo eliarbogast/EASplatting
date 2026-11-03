@@ -3,6 +3,26 @@
 Goal: prove every stage works on a local Linux + NVIDIA machine before spending VACC time.
 No fitness/EA yet. Commands run from the repo root.
 
+## Supported platforms
+
+Check any machine first (safe to run before installing anything; paste the output when asking for help):
+
+```bash
+python scripts/check_env.py            # add --smoke after setup to also compile gsplat and render
+```
+
+| | Status |
+|---|---|
+| **Tested** | Pop!_OS 24.04 (Ubuntu-based, glibc 2.39), x86_64, RTX 5070 Ti (sm_120), driver CUDA 13.2, torch 2.8/cu128 |
+| **Expected to work, not yet run** | other x86_64 glibc Linux (RHEL 9 on the VACC); GPUs sm_70 to sm_120 with driver CUDA >= 12.8. Checked: torch's wheel has kernels for all of them, and one gsplat build compiled for sm_70-sm_120 loads and renders on sm_120 (the other architectures are in the binary but were never executed) |
+| **Fallback stack, not yet run** | torch 2.4.1/cu124 (picked automatically) for drivers CUDA 12.4-12.7, and for pre-Volta GPUs (sm < 7.0, e.g. GTX 10xx) |
+| **Not supported** | Windows, macOS, aarch64 (untested), drivers older than CUDA 12.4 (override `CU`/`TORCH`/`TORCHVISION` at your own risk) |
+
+Tools needed by the scripts: `git`, `sed`, `sort`, conda (or `python3 >= 3.9` with `venv`). Downloads and
+unzipping use `scripts/download.py`, so `wget`, `curl` and `unzip` are not required.
+`setup_local.sh` checks these up front. GPU memory: bonsai peaks at ~4.7 GB; cards under 8 GB and
+outdoor scenes are untested (lower `batch_size` in `render_views` if you run out).
+
 ## 0. Environment (once)
 
 ```bash

@@ -24,6 +24,9 @@ gsplat build serve every node type**.
 
 ## Checklist
 
+0. **Look before you build:** `python scripts/check_env.py` on the login node and again on a GPU node
+   (`--smoke` once the env exists); it reports the OS, driver, GPUs, which torch build would be used,
+   compilers, missing tools and env vars. Paste its output if anything looks off.
 1. **Build the env on a login node** (no GPU needed), on project/GPFS storage, not `$HOME` (the conda
    CUDA toolkit alone is several GB). No root needed; Miniforge installs into a directory you own.
    ```bash

@@ -7,6 +7,11 @@
 # Knobs (env vars): ENV_NAME, PY, TORCH, TORCHVISION, CU, GSPLAT, WITH_TRAINER,
 #                   TORCH_CUDA_ARCH_LIST (e.g. "8.0;9.0;12.0"), NO_GPU_OK=1, PRINT_CONFIG=1
 #
+# Torch stack by hardware: torch 2.8/cu128 by default (sm_70..sm_120, driver CUDA >= 12.8); torch
+# 2.4.1/cu124 for drivers 12.4-12.7 and for pre-Volta GPUs (sm < 7.0, e.g. GTX 10xx); drivers older
+# than CUDA 12.4 stop with a message (override CU/TORCH/TORCHVISION at your own risk).
+# Check a machine first with: python scripts/check_env.py
+#
 # On a cluster login node (no GPU): NO_GPU_OK=1 TORCH_CUDA_ARCH_LIST="8.0;9.0;12.0" bash scripts/setup_local.sh
 # builds the env without a GPU; then run scripts/smoke_gsplat.py once on a GPU node to compile
 # gsplat's kernels into the shared cache. See docs/CLUSTER.md.
@@ -21,23 +26,46 @@
 #                   and installs examples/requirements.txt (fused-ssim etc. compile -> nvcc)
 set -euo pipefail
 
+# Preflight: the few non-Python tools this script itself relies on.
+missing=""
+for t in sed sort tr head grep; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done
+[ "${WITH_TRAINER:-1}" = 1 ] && { command -v git >/dev/null 2>&1 || missing="$missing git"; }
+if ! command -v conda >/dev/null 2>&1; then
+  command -v python3 >/dev/null 2>&1 || missing="$missing python3(or-conda)"
+fi
+if [ -n "$missing" ]; then
+  echo "!! missing required tools:$missing -- install them (or Miniforge for conda, no root needed) and re-run"; exit 1
+fi
+
 ENV_NAME=${ENV_NAME:-gsprune}
 PY=${PY:-3.10}
-# torch 2.8 + cu128 is the default everywhere: its wheels carry kernels for sm_70 through sm_120
-# (Volta ... Hopper ... Blackwell, incl. RTX 50xx), so one env serves a mixed-GPU cluster. The old
-# torch 2.4/cu124 stack is only chosen when a GPU is present and its driver is older than CUDA 12.8.
-# There are no prebuilt gsplat wheels for cu128, so gsplat JIT-compiles on first use (nvcc >= 12.8,
+# torch 2.8 + cu128 is the default: its wheels carry kernels for sm_70 through sm_120 (Volta ... Hopper
+# ... Blackwell, incl. RTX 50xx), so one env serves a mixed-GPU cluster. The old torch 2.4/cu124 stack
+# (kernels sm_50..sm_90) is used when the driver is older than CUDA 12.8, or the GPU is older than
+# Volta. There are no prebuilt gsplat wheels for cu128, so gsplat JIT-compiles on first use (nvcc,
 # installed below via conda).
+ver_lt() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$1" ]; }
 HAVE_GPU=0; GPU_CC=""; DRV_CUDA=""
 if nvidia-smi >/dev/null 2>&1; then
   HAVE_GPU=1
-  GPU_CC=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' ')
+  GPU_CC=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' ' || true)
   DRV_CUDA=$(nvidia-smi 2>/dev/null | sed -n 's/.*CUDA Version: *\([0-9]*\.[0-9]*\).*/\1/p' | head -1)
+  case "$GPU_CC" in [0-9]*.[0-9]*) ;; *) GPU_CC="" ;; esac   # old drivers can't report compute_cap
 fi
-if [ "$HAVE_GPU" = 1 ] && [ -n "$DRV_CUDA" ] && [ "$(printf '%s\n12.8\n' "$DRV_CUDA" | sort -V | head -1)" != "12.8" ]; then
-  DEF_TORCH=2.4.1; DEF_TV=0.19.1; DEF_CU=cu124      # driver older than CUDA 12.8
+OLD_GPU=0
+if [ -n "$GPU_CC" ] && [ "${GPU_CC%%.*}" -lt 7 ]; then OLD_GPU=1; fi
+if [ "$HAVE_GPU" = 1 ] && [ -n "$DRV_CUDA" ] && ver_lt "$DRV_CUDA" 12.4 && [ -z "${CU:-}" ]; then
+  echo "!! The NVIDIA driver supports CUDA $DRV_CUDA only; the supported torch builds (cu124/cu128) need >= 12.4."
+  echo "   Update the driver, or at your own risk: CU=cu118 TORCH=2.4.1 TORCHVISION=0.19.1 bash scripts/setup_local.sh"
+  exit 1
+elif [ "$OLD_GPU" = 1 ] || { [ "$HAVE_GPU" = 1 ] && [ -n "$DRV_CUDA" ] && ver_lt "$DRV_CUDA" 12.8; }; then
+  DEF_TORCH=2.4.1; DEF_TV=0.19.1; DEF_CU=cu124
+  [ "$OLD_GPU" = 1 ] && echo "note: GPU is sm_${GPU_CC/./} (older than Volta): using torch 2.4.1/cu124, the newest stack with its kernels"
 else
   DEF_TORCH=2.8.0; DEF_TV=0.23.0; DEF_CU=cu128
+fi
+if [ "$HAVE_GPU" = 1 ] && [ -z "$GPU_CC" ]; then
+  echo "note: could not read the GPU's compute capability (old driver?); set TORCH_CUDA_ARCH_LIST if kernel builds fail"
 fi
 # Which GPU architectures to compile for. Only an EXPLICIT TORCH_CUDA_ARCH_LIST is persisted in the
 # conda env; the auto-detected one is used for this script's builds only (a login node or a
@@ -75,7 +103,8 @@ if command -v conda >/dev/null 2>&1; then
   conda env list | grep -qE "^${ENV_NAME}\s" || conda create -y -n "$ENV_NAME" "python=$PY"
   conda activate "$ENV_NAME"
 else
-  python3 -m venv "$ROOT/.venv"
+  python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' || { echo "!! python3 >= 3.9 is needed for the venv fallback (torch 2.8); install conda/Miniforge instead"; exit 1; }
+  python3 -m venv "$ROOT/.venv" || { echo "!! python3 -m venv failed (on Debian/Ubuntu: apt install python3-venv); or install conda/Miniforge"; exit 1; }
   source "$ROOT/.venv/bin/activate"
 fi
 python -m pip install --upgrade pip wheel

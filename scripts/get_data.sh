@@ -17,6 +17,9 @@
 #   pretrained/nb/gaussian-splatting/mipnerf360/<scene>/point_cloud.ply   (+ <scene>.json: NB's metrics)
 #   pretrained/inria/<scene>/point_cloud.ply
 #
+# Needs only python (+ coreutils); downloads and unzipping go through scripts/download.py, so there is
+# no dependency on wget / curl / unzip. Run it where the internet is (login node on a cluster).
+#
 # Protocol (NerfBaselines, matches the 3DGS paper's split): test = every 8th image (name-sorted);
 # outdoor scenes at images_4, indoor at images_2 — the official downscaled JPEGs.
 set -euo pipefail
@@ -51,10 +54,10 @@ nb_checkpoints() {
     local d="pretrained/nb/gaussian-splatting/mipnerf360/$s"
     mkdir -p "$d"
     echo "== NerfBaselines gaussian-splatting / mipnerf360 / $s"
-    wget -q -c "$NB_RESULTS/gaussian-splatting/mipnerf360/$s.json" -O "$d/$s.json" || echo "  (no metrics json)"
+    python scripts/download.py -q "$NB_RESULTS/gaussian-splatting/mipnerf360/$s.json" "$d/$s.json" || echo "  (no metrics json)"
     if [ ! -f "$d/point_cloud.ply" ]; then
-      wget -c "$NB_RESULTS/gaussian-splatting/mipnerf360/$s.zip" -O "$d/$s.zip"
-      unzip -q -o "$d/$s.zip" -d "$d/unzipped"
+      python scripts/download.py "$NB_RESULTS/gaussian-splatting/mipnerf360/$s.zip" "$d/$s.zip"
+      python scripts/download.py -q --unzip "$d/$s.zip" "$d/unzipped"
       # newest iteration's point_cloud.ply, wherever the archive put it
       local ply; ply=$(find "$d/unzipped" -name point_cloud.ply -path "*iteration_*" | sort -V | tail -1)
       [ -n "$ply" ] || ply=$(find "$d/unzipped" -name "*.ply" | head -1)
@@ -68,16 +71,16 @@ nb_checkpoints() {
 tandt() {
   if [ ! -d data/tandt/truck ]; then
     echo "== Tanks&Temples + Deep Blending (Inria preprocessed, undistorted)"
-    wget -c https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip -O data/tandt_db.zip
-    unzip -q -n data/tandt_db.zip -d data
+    python scripts/download.py https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip data/tandt_db.zip
+    python scripts/download.py -q --unzip --no-overwrite data/tandt_db.zip data
   fi
 }
 
 inria_pretrained() {
   # Standalone script from gsplat's main branch: range-extracts single scenes from the 14.7 GB models.zip.
-  [ -f ext/download_3dgs_paper_scenes.py ] || curl -fsSL \
+  [ -f ext/download_3dgs_paper_scenes.py ] || python scripts/download.py -q \
     https://raw.githubusercontent.com/nerfstudio-project/gsplat/main/examples/download_3dgs_paper_scenes.py \
-    -o ext/download_3dgs_paper_scenes.py
+    ext/download_3dgs_paper_scenes.py
   python ext/download_3dgs_paper_scenes.py --scenes "$@" --output-dir pretrained/inria
 }
 

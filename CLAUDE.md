@@ -20,8 +20,10 @@ design, baselines, pitfalls). `docs/LOCAL_PIPELINE.md`: how to run things.
   threshold -> mask logic (reuse it in the genome decoder)
 - `evaluate.py` end-to-end check: scene + cameras → renders → metrics → `report.json`
 - `export_gsplat_cameras.py` cameras in gsplat-trainer's normalized frame
-- `scripts/` env setup (`NO_GPU_OK=1` for GPU-less cluster login nodes), data download, gsplat
-  training, zip range-fetcher, `smoke_gsplat.py` (kernel pre-warm), `prefetch_weights.py` (LPIPS)
+- `scripts/` `check_env.py` (machine report; ask for its output when debugging someone's setup),
+  env setup (`NO_GPU_OK=1` for GPU-less cluster login nodes), data download (`download.py`
+  replaces wget/curl/unzip), gsplat training, zip range-fetcher, `smoke_gsplat.py` (kernel
+  pre-warm), `prefetch_weights.py` (LPIPS)
 - `tests/` CPU tests with a fake gsplat (`tests/fake_gsplat`)
 
 ## Conventions that must not drift

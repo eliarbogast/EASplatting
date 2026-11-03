@@ -20,6 +20,7 @@ fewer Gaussians and faster rendering with minimal quality loss, no retraining. R
 ```bash
 bash scripts/setup_local.sh && conda activate gsprune    # also handles RTX 50xx (Blackwell)
 bash scripts/get_data.sh                                 # bonsai + checkpoint + Tanks&Temples (~4 GB)
+python scripts/check_env.py --smoke                      # does this machine work? (paste the output if not)
 python -m pytest -q tests                                # CPU tests with a fake renderer
 python viewer.py --scene pretrained/nb/gaussian-splatting/mipnerf360/bonsai/point_cloud.ply \
     --cameras data/360_v2/bonsai --images images_2       # then open http://localhost:8080
@@ -50,5 +51,5 @@ Datasets, checkpoints and results are downloaded or generated locally and are gi
 | `evaluate.py` | scene + cameras -> renders -> metrics -> `report.json` (with cross-checks) |
 | `viewer.py` | interactive threshold-pruning viewer (viser) |
 | `export_gsplat_cameras.py` | cameras in gsplat-trainer's normalized frame |
-| `scripts/` | env setup (also GPU-less cluster login nodes), data download, gsplat training, kernel pre-warm, LPIPS weight prefetch |
+| `scripts/` | `check_env.py` (will it work here?), env setup (also GPU-less cluster login nodes), data download (`download.py`, no wget/unzip needed), gsplat training, kernel pre-warm, LPIPS weight prefetch |
 | `tests/` | CPU tests with a fake gsplat |
