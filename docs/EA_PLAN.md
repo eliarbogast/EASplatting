@@ -60,6 +60,32 @@ methods (GA, random, CMA-ES) x 30 seeds = 360 runs is ~10 GPU-hours at 3,000 eva
 8. Optional multi-fidelity: score all on 4 views, re-score the top quarter on the full set.
 9. Don't rotate fitness views per generation (noisy, elites not comparable).
 
+## Decisions to make next (parked 2026-11-06)
+
+Four questions block implementation of `genome.py` / `fitness.py`; we haven't answered them yet. Leans
+are mine. Full list of everything else is under "Open questions" below.
+
+1. **Fitness form (Q1).** (a) *Constrained, feasibility-first (lean):* minimize kept Gaussians subject to
+   PSNR-vs-unpruned >= tau; feasible always beats infeasible; one scalar, so GA vs random vs CMA-ES stats
+   stay simple; sweep tau for a quality-size curve. (b) *NSGA-II:* whole Pareto front in one run (pop 100
+   suits it), but cross-method comparison needs hypervolume. (c) *Weighted sum + lambda sweep:* simplest,
+   but the weight silently decides the trade-off (it did in the prototype).
+2. **Genes in the first version (Q4).** (a) *3 thresholds first, importance score next (lean):* opacity,
+   max scale, anisotropy already exist (`viewer.keep_mask`). (b) Importance score from the start: likely
+   better compression, needs a per-scene importance pass first. (c) 3 genes + SH-degree cap: then size
+   must be measured in bytes.
+3. **Scenes (Q12).** (a) *Indoor first, outdoor after (lean):* bonsai + counter (~2 min per 10k-eval run),
+   then garden + bicycle (~8-10 min). (b) All four from the start (~3x compute up front). (c) Another set.
+4. **Fine-tuning after pruning (Q11).** (a) *Training-free loop, fine-tune chosen finals only (lean):*
+   ~1-1.5 min per solution, reported separately, for comparison with LP-3DGS / Speedy-Splat. (b) Strictly
+   training-free. (c) Fine-tune every final solution (~2x study cost).
+
+**Already settled by the 2026-11-06 measurements (object if you disagree):** 8 fitness views at half
+resolution (Q8; Spearman 0.998 vs full); budget by evaluation count, also report wall time (Q10); pop 100
+but ~20-30 generations with a convergence check (Q15; the GA converged by gen ~10); feasibility-first
+instead of a fixed penalty (Q3); size = Gaussian count, also report bytes (Q2); a Gaussian is kept only
+if all conditions pass (Q5); accept the 0.008 LPIPS gap (Q16).
+
 ## Open questions
 
 **Objective**
