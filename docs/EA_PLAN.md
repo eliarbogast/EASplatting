@@ -15,10 +15,35 @@ background, which is where scene-specific thresholds should matter most).
 
 **Cluster:** see `docs/CLUSTER.md` (VACC GPUs, env, preemption, one GPU SKU for timings).
 
-**Estimate** (measured: bonsai renders in ~13 ms/view at 1559x1039, from `report.json`).
-Fitness = ~8 train views at reduced resolution = 20-60 ms = 15-50 evals/s, faster as individuals
-prune more. A run of pop 32 x 50 gens = 1,600 evals = 0.5-2 min. A study of 4 scenes x 4 methods
-x 30 seeds = 480 runs = 4-16 GPU-hours.
+**Measured** (RTX 5070 Ti, 2026-11-06; reproduce with `python scripts/bench_eval.py`, and re-run it on each
+VACC GPU type). One evaluation = mask -> prune -> render 8 train views at half res -> PSNR vs cached baselines.
+
+| | Result |
+|---|---|
+| Cost per evaluation | **~9-10 ms per million Gaussians** (8 views, half res), linear in N: bonsai 1.25 M = 12.7 ms, truck 2.05 M = 19.8 ms, tiled 5 M = 45 ms, tiled 10 M = 87 ms |
+| Memory | ~1.1 GB per million Gaussians at 8 views per call (10 M = 11.4 GB); lower `batch_size` beyond that |
+| GPU sharing | 1 / 2 / 4 processes on one GPU = 76 / 71 / 74 evals/s aggregate: **one process saturates the GPU**; throughput scales with GPU count, not processes |
+| Views / resolution | 16 views = 2x cost; half res saves ~35%, quarter res ~45% (cost is per-Gaussian projection and sorting, not pixels) |
+| Metrics in the loop | PSNR +0.25 ms; SSIM +8 ms (+60%); LPIPS-alex +12 ms (2x); **LPIPS-VGG +184 ms (16x)**: keep it for the final eval |
+| Cheap vs full fitness | 4-16 views at 0.25-0.5 scale rank 40 random genomes with Spearman 0.995-0.998 vs 64 views at full res |
+| Outdoor scenes | not measured; estimate ~50-60 ms/eval at the ~5-6 M Gaussians the outdoor scenes have, from the linear scaling above |
+
+**What a throwaway prototype showed** (bonsai; pop 100, 100 offspring per generation, tournament k=3, Gaussian
+mutation, 2 elites, 100 generations = 9,900 evals = 123 s per run; fitness = kept fraction + 0.05 per dB
+below a 40 dB-vs-unpruned constraint):
+- The GA **converged by generation ~10 (~1,000 evals)** in all 3 seeds, to nearly the same optimum
+  (fitness 0.7768-0.7769); the remaining 90 generations changed nothing.
+- Random search with the same 9,000 evals ended 1% worse (0.783-0.785) and was still creeping; with 1,000
+  evals it was 0.5-3% worse. The 3-gene landscape is easy, so **GA ~ random search is a likely finding.**
+- All three GA runs ended *infeasible* (39.3 dB < 40 dB): a fixed penalty weight lets the optimizer trade the
+  constraint away. Use feasibility-first ranking (infeasible always loses to feasible) or a lambda sweep.
+- With only opacity / max-scale / anisotropy thresholds, ~39 dB vs unpruned kept ~74% of Gaussians. Treat
+  that as a hint that an importance-score gene (LightGaussian-style) may be needed for headline compression.
+
+**Budget** (from the above; evals/s ~ 1000 / (10 ms per M Gaussians x N + ~2 ms)): an indoor-scene run of
+10,000 evals is ~2 min, an outdoor-scene run ~8-10 min. Because the GA converges in ~1,000-3,000 evals,
+budget ~3,000 evals/run (indoor ~40 s, outdoor ~3 min). A study of 2 indoor + 2 outdoor scenes x 3 stochastic
+methods (GA, random, CMA-ES) x 30 seeds = 360 runs is ~10 GPU-hours at 3,000 evals, ~35 at 10,000.
 
 **Making evaluations cheap (by expected impact)**
 1. Cheap fitness, full final eval: fixed 8-16 TRAIN views at reduced resolution while evolving;
@@ -29,8 +54,9 @@ x 30 seeds = 480 runs = 4-16 GPU-hours.
 5. All fitness views of an individual in one `render_views` call; tune `batch_size`.
 6. Fitness cache keyed on the (rounded) genome so elites/duplicates aren't re-rendered.
 7. Later: render several individuals per call by zeroing opacities (gsplat 1.5.3 culls opacity
-   < 1/255 and accepts `opacities` of shape `[B, N]`). Memory-hungry; FPS must still be measured
-   on an actually pruned scene.
+   < 1/255 and accepts `opacities` of shape `[B, N]`). Memory-hungry, and since one process already
+   saturates the GPU it only saves launch overhead; FPS must still be measured on an actually pruned scene.
+   The prune copy (~1.4 ms per M Gaussians, ~13% of an eval) can be skipped by zeroing opacities instead.
 8. Optional multi-fidelity: score all on 4 views, re-score the top quarter on the full set.
 9. Don't rotate fitness views per generation (noisy, elites not comparable).
 

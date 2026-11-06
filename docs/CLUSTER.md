@@ -54,9 +54,10 @@ gsplat build serve every node type**.
    evaluation count, not wall time. `gpu-debug` (A100) is for dry runs, not timings.
 6. **Runs must be resumable** (skip finished seeds, write per-seed results as you go): required for
    `gpu-preempt`, and good practice for `nvgpu`. Our runs are minutes long, so seed-level resume is enough.
-7. **Don't waste an H200.** A fitness evaluation renders ~8 small views, which won't saturate a 141 GB
-   GPU; run several processes per GPU, or render several individuals per call (EA_PLAN, cost item 7).
-   Memory is not the constraint (bonsai peaks at 4.7 GB).
+7. **Parallelism = number of GPUs.** On the 5070 Ti, 1 / 2 / 4 processes sharing a GPU gave 76 / 71 / 74
+   evals/s in total, so one process already saturates it (`scripts/bench_eval.py`, part B). Re-run that
+   benchmark on an H200 before assuming a bigger GPU behaves differently; until then spread seeds across
+   GPUs (array tasks), not across processes on one GPU. Memory is ~1.1 GB per million Gaussians at 8 views.
 8. **Logs:** progress meters should print plain periodic lines when not attached to a TTY; plotting must
    use matplotlib's `Agg` backend.
 9. **Viewer on a node:** `python viewer.py ...` binds to 127.0.0.1 only. From a laptop:

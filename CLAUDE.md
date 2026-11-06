@@ -23,7 +23,7 @@ design, baselines, pitfalls). `docs/LOCAL_PIPELINE.md`: how to run things.
 - `scripts/` `check_env.py` (machine report; ask for its output when debugging someone's setup),
   env setup (`NO_GPU_OK=1` for GPU-less cluster login nodes), data download (`download.py`
   replaces wget/curl/unzip), gsplat training, zip range-fetcher, `smoke_gsplat.py` (kernel
-  pre-warm), `prefetch_weights.py` (LPIPS)
+  pre-warm), `prefetch_weights.py` (LPIPS), `bench_eval.py` (per-evaluation cost; feeds EA_PLAN's budget)
 - `tests/` CPU tests with a fake gsplat (`tests/fake_gsplat`)
 
 ## Conventions that must not drift
