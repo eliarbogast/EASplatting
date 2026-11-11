@@ -28,17 +28,21 @@ VACC GPU type). One evaluation = mask -> prune -> render 8 train views at half r
 | Cheap vs full fitness | 4-16 views at 0.25-0.5 scale rank 40 random genomes with Spearman 0.995-0.998 vs 64 views at full res |
 | Outdoor scenes | not measured; estimate ~50-60 ms/eval at the ~5-6 M Gaussians the outdoor scenes have, from the linear scaling above |
 
-**What a throwaway prototype showed** (bonsai; pop 100, 100 offspring per generation, tournament k=3, Gaussian
-mutation, 2 elites, 100 generations = 9,900 evals = 123 s per run; fitness = kept fraction + 0.05 per dB
-below a 40 dB-vs-unpruned constraint):
-- The GA **converged by generation ~10 (~1,000 evals)** in all 3 seeds, to nearly the same optimum
-  (fitness 0.7768-0.7769); the remaining 90 generations changed nothing.
-- Random search with the same 9,000 evals ended 1% worse (0.783-0.785) and was still creeping; with 1,000
-  evals it was 0.5-3% worse. The 3-gene landscape is easy, so **GA ~ random search is a likely finding.**
-- All three GA runs ended *infeasible* (39.3 dB < 40 dB): a fixed penalty weight lets the optimizer trade the
-  constraint away. Use feasibility-first ranking (infeasible always loses to feasible) or a lambda sweep.
-- With only opacity / max-scale / anisotropy thresholds, ~39 dB vs unpruned kept ~74% of Gaussians. Treat
-  that as a hint that an importance-score gene (LightGaussian-style) may be needed for headline compression.
+**What a throwaway prototype showed** (bonsai; pop 100 = 2 elites + 98 offspring per generation, tournament
+k=3, Gaussian mutation with sigma = 10% of each gene's range; fitness = kept fraction, feasibility-first, subject
+to >= 40 dB vs the unpruned render on 8 half-res train views; 4,020 evals = 50 s per run, 12.4 ms/eval):
+- All 3 GA seeds reach the same optimum: **70.5% of Gaussians kept at 40.0-40.1 dB** (right on the constraint).
+  They are within half a point of it by generation ~10 (~1,000 evals); the rest is polishing.
+- Random search with the same ~4,000 evals ends at 72.9 / 75.1 / 73.7% kept: **the GA wins by 2-5 points**, and
+  random search is still moving. Modest but real; on 3 smooth genes it is not a landslide.
+- Correction (2026-11-11): the first version of this prototype treated the top of the anisotropy range as "off".
+  It is the 99.9th percentile, so every genome silently removed 1,219 extreme needle-like Gaussians (0.1%) and
+  quality could never exceed ~40 dB. That produced a false "all runs infeasible" and a false "GA ~ random search /
+  need an importance gene". **A gene's "off" must be exactly reachable** (viewer: slider ends mean inf / 0;
+  prototype: outer 5% of the range decodes to "off"). The genome decoder must do the same.
+- What it does say about the 3 threshold genes on bonsai: they remove ~30% of Gaussians for ~1 dB real loss vs the
+  photos, and ~11% for free. Whether an importance-score gene reaches smaller sizes at equal quality is an open
+  question to test, not something this data shows.
 
 **Budget** (from the above; evals/s ~ 1000 / (10 ms per M Gaussians x N + ~2 ms)): an indoor-scene run of
 10,000 evals is ~2 min, an outdoor-scene run ~8-10 min. Because the GA converges in ~1,000-3,000 evals,
@@ -60,12 +64,69 @@ methods (GA, random, CMA-ES) x 30 seeds = 360 runs is ~10 GPU-hours at 3,000 eva
 8. Optional multi-fidelity: score all on 4 views, re-score the top quarter on the full set.
 9. Don't rotate fitness views per generation (noisy, elites not comparable).
 
+## How to measure fitness (assessment, 2026-11-11)
+
+Evidence: `python scripts/metrics_intuition.py` (bonsai, 8 train views, full res; writes pictures to
+`results/metrics_intuition/`: `levels.png` = what each quality level looks like, `frontier.png` = the curves).
+
+**What the metrics mean here** (all compare a pruned render with the unpruned one, which is the reference):
+- **PSNR** = 10 log10(1/MSE): the energy of the pixel errors, on a log scale. 60 dB = RMS error 0.1% of the
+  range (0.3/255), 50 dB = 0.3%, 40 dB = 1% (2.5/255), 30 dB = 3.2% (8/255), 20 dB = 10%. Every +10 dB is 10x less
+  error energy. Blind to *where* or *what kind*; big errors on bright edges dominate. Infinite for identical
+  images, so cap it (60 dB).
+- **SSIM** (0-1): compares local brightness, contrast and structure in small windows. Sits near 1 for small
+  damage (0.999, 0.997, 0.979 ...), so the signal is in the third decimal. Reacts to lost texture.
+- **LPIPS** (0 = identical): distance between deep-network features, a proxy for "does it look different to a
+  trained eye". Catches texture/blur differences PSNR forgives. Costs 12 ms (alex) or 184 ms (vgg) per eval.
+- **Gaussians kept** (%): the size side. Bytes are proportional to it while no SH is dropped.
+
+**What pruning does to quality** (opacity threshold alone, bonsai): the first ~11% of Gaussians are free
+(opacity below 1/255 is never rendered, so PSNR vs unpruned is exactly infinite). After that quality falls
+quickly: 76% kept = 49 dB (visually identical), 72% = 41 dB, 60% = 35 dB (texture visibly thinner), 45% = 31 dB,
+32% = 26 dB (streaks, dark patches).
+
+**What "vs unpruned" means for the real result** (loss vs the photos; the model itself is 31.7 dB vs photos):
+
+| PSNR vs unpruned | mean kept | real loss vs photos (dB PSNR) | SSIM loss | LPIPS-alex rise |
+|---|---|---|---|---|
+| 60+ dB | 94% | 0.002 | 0.0000 | 0.0000 |
+| 50-60 | 86% | 0.09 | 0.0003 | 0.0001 |
+| 45-50 | 92% | 0.20 | 0.0007 | 0.0006 |
+| 40-45 | 84% | 0.76 | 0.0016 | 0.0013 |
+| 35-40 | 83% | 1.5 | 0.005 | 0.004 |
+| 30-35 | 66% | 3.7 | 0.033 | 0.023 |
+
+Rule of thumb: pruning error adds *in power* to the model's own error, so real loss L = 10 log10(1 + 10^((G0 - U)/10)),
+with G0 = model PSNR vs photos and U = PSNR vs unpruned. It has the right shape but runs 1.3-2x low in the data
+(errors overlap: both live in textured regions), so for an allowed real loss of 0.5 dB use U >= ~42-43 dB on bonsai
+(formula alone says 40.8). The two PSNRs differ per scene, so **state the constraint as a real loss and derive the
+vs-unpruned threshold per scene** from G0 (measured once per scene on the train views).
+
+**All metrics rank pruned genomes almost identically** (Spearman over 88 genomes: PSNR vs LPIPS-vgg 0.996, vs
+LPIPS-alex 0.993, vs SSIM 0.975), and PSNR vs unpruned predicts the real loss best (rank correlation 0.996,
+LPIPS-vgg 0.991, LPIPS-alex 0.987, SSIM 0.978). The cheap loop fitness (8 views, half res) ranks like the
+full-resolution one at 0.998. Pruning damage is one kind (missing Gaussians), so extra metrics add cost, not signal.
+
+**Recommendation**
+1. **In the loop:** PSNR vs the cached unpruned renders (cap 60 dB) on 8 fixed train views at half res, plus Gaussian
+   count. 12 ms per evaluation; nothing else in the loop.
+2. **Objective:** feasibility-first: minimize kept fraction subject to U >= U_min, where U_min comes from an allowed
+   real loss (e.g. 0.5 dB, `U_min = G0 - 10 log10(10^(L/10) - 1)` plus ~2 dB of margin). Sweep L for a quality-size
+   curve; NSGA-II would give that curve in one run (decision Q1 below).
+3. **Final report per solution** on the held-out test views at full res: PSNR/SSIM/LPIPS-vgg vs the photos *and*
+   vs unpruned, kept %, bytes, FPS. The photos column is what papers report.
+4. **Guards:** floor the free region (the baseline "opacity 0.005 cull" already keeps 88% at ~92 dB); log the
+   incumbent's test-view PSNR every ~10 generations (never used for selection); the mean over views can hide one
+   badly damaged view, so consider also constraining the worst view (not measured yet).
+5. **Caveat:** one scene, one 8-view set, one gene family; re-run the script per scene before trusting the
+   rule-of-thumb numbers elsewhere.
+
 ## Decisions to make next (parked 2026-11-06)
 
 Four questions block implementation of `genome.py` / `fitness.py`; we haven't answered them yet. Leans
 are mine. Full list of everything else is under "Open questions" below.
 
-1. **Fitness form (Q1).** (a) *Constrained, feasibility-first (lean):* minimize kept Gaussians subject to
+1. **Fitness form (Q1).** (How to *measure* quality is settled above; this is about how to combine it with size.) (a) *Constrained, feasibility-first (lean):* minimize kept Gaussians subject to
    PSNR-vs-unpruned >= tau; feasible always beats infeasible; one scalar, so GA vs random vs CMA-ES stats
    stay simple; sweep tau for a quality-size curve. (b) *NSGA-II:* whole Pareto front in one run (pop 100
    suits it), but cross-method comparison needs hypervolume. (c) *Weighted sum + lambda sweep:* simplest,

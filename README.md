@@ -51,5 +51,5 @@ Datasets, checkpoints and results are downloaded or generated locally and are gi
 | `evaluate.py` | scene + cameras -> renders -> metrics -> `report.json` (with cross-checks) |
 | `viewer.py` | interactive threshold-pruning viewer (viser) |
 | `export_gsplat_cameras.py` | cameras in gsplat-trainer's normalized frame |
-| `scripts/` | `check_env.py` (will it work here?), env setup (also GPU-less cluster login nodes), data download (`download.py`, no wget/unzip needed), gsplat training, `bench_eval.py` (cost of one EA fitness evaluation on this GPU), kernel pre-warm, LPIPS weight prefetch |
+| `scripts/` | `check_env.py` (will it work here?), env setup (also GPU-less cluster login nodes), data download (`download.py`, no wget/unzip needed), gsplat training, `bench_eval.py` (cost of one EA fitness evaluation on this GPU), `metrics_intuition.py` (what the metrics mean for pruning), kernel pre-warm, LPIPS weight prefetch |
 | `tests/` | CPU tests with a fake gsplat |

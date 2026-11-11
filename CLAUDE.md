@@ -23,7 +23,8 @@ design, baselines, pitfalls). `docs/LOCAL_PIPELINE.md`: how to run things.
 - `scripts/` `check_env.py` (machine report; ask for its output when debugging someone's setup),
   env setup (`NO_GPU_OK=1` for GPU-less cluster login nodes), data download (`download.py`
   replaces wget/curl/unzip), gsplat training, zip range-fetcher, `smoke_gsplat.py` (kernel
-  pre-warm), `prefetch_weights.py` (LPIPS), `bench_eval.py` (per-evaluation cost; feeds EA_PLAN's budget)
+  pre-warm), `prefetch_weights.py` (LPIPS), `bench_eval.py` (per-evaluation cost; feeds EA_PLAN's budget),
+  `metrics_intuition.py` (what the metrics mean for pruning; feeds EA_PLAN's fitness assessment)
 - `tests/` CPU tests with a fake gsplat (`tests/fake_gsplat`)
 
 ## Conventions that must not drift
@@ -41,6 +42,10 @@ design, baselines, pitfalls). `docs/LOCAL_PIPELINE.md`: how to run things.
   (`metrics.py` default `vgg`, `normalize=True`; verified against NB's published bonsai numbers).
   `--lpips-net alex` only when cross-checking gsplat's own eval; `vgg-raw` (Inria's unscaled
   convention, ~0.05 lower) only to compare with paper tables, never mixed with `vgg`.
+- A gene's "off" (no pruning from it) must be exactly reachable: thresholds 0 / inf, as the viewer's
+  slider ends do. `slider_bounds` stops the anisotropy slider at the 99.9th percentile, which is NOT off
+  (it removes ~0.1% extreme Gaussians and caps quality at ~40 dB vs unpruned). Genome decoders need an
+  explicit "off" zone.
 - Same background color for baseline and pruned renders (black for real scenes).
 - Pin gsplat **1.5.3** (latest release); `ext/gsplat` examples must be the same tag.
 
