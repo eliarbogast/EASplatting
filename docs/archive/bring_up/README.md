@@ -2,7 +2,7 @@
 
 First real-GPU runs: RTX 5070 Ti (Blackwell, sm_120), torch 2.8.0+cu128, gsplat 1.5.3 (JIT-built,
 first call 34 s), conda env `gsprune`. The files here are small copies of the git-ignored
-`results/eval_*/` outputs (no renders). Commands: `docs/LOCAL_PIPELINE.md` steps 2-3.
+`results/eval_*/` outputs (no renders). Commands: [`../../RUNNING.md`](../../RUNNING.md) sections 3-4. Archived: kept as the record of the first real run.
 
 | Run (files) | Result |
 |---|---|

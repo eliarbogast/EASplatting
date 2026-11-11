@@ -1,9 +1,38 @@
-# EA plan: compute budget, open questions, feedback ideas
+# EA plan
 
-For Eli + Areeb as we write the EA. "Lean" = a suggestion, not a decision. Background and fitness
-design: `docs/GS_PRUNING_NOTES.md` §5-8. Already decided (see `HANDOFF.md`): unpruned renders as
-the in-loop reference, evolve on train views / report on test, PSNR-only in the loop,
-NerfBaselines protocol.
+Status, decisions, next steps, the compute budget, how to measure fitness, and the open design questions, for
+Eli + Areeb as we write the EA. "Lean" = a suggestion, not a decision. How to run things: [`RUNNING.md`](RUNNING.md).
+Background and fitness-design options: [`BACKGROUND.md`](BACKGROUND.md) sections 5-8.
+
+## Status and next steps (2026-11-11)
+
+**Done and verified on a real GPU** (RTX 5070 Ti; results in [`RUNNING.md`](RUNNING.md) section 7): scene loading,
+cameras, rendering, metrics (match NerfBaselines and gsplat's own eval), the evaluation report, the interactive
+viewer, the threshold -> mask logic (`easplatting/thresholds.py`), data/setup/measurement scripts. 37 CPU tests.
+**Not started:** `genome.py`, `fitness.py`, the search algorithms, the VACC job scripts.
+
+**Decisions already made**
+- **Renderer: gsplat 1.5.3** (latest release; 1.6.0 on main is unreleased with a different trainer API). Batched
+  multi-camera forward renders from Python; a mask is just tensor indexing.
+- **Benchmark: NerfBaselines Mip-NeRF 360 protocol**: official `images_4` (outdoor) / `images_2` (indoor), llffhold-8
+  test split (every 8th name-sorted camera), LPIPS-VGG on [-1,1]-rescaled inputs. Unpruned baseline = NerfBaselines'
+  `gaussian-splatting` checkpoints (trained on the train split only, published per-scene metrics). Inria's own
+  pretrained models may include test views, so use them only for quick tests.
+- **Dev scene: bonsai** (indoor, 1.25 M Gaussians); outdoor scenes run to several million.
+- **Tanks & Temples:** Inria's `tandt_db` (not NerfBaselines' T&T, which is preprocessed differently).
+- **Fitness reference:** the unpruned renders (cached by `evaluate --cache-baselines`), not the photos; final tables
+  report both. Evolve on train views, report on test views.
+
+**Next steps**
+1. Settle the four decisions under "Decisions to make next" below (fitness form, genes, scenes, fine-tuning).
+2. `easplatting/genome.py`: gene bounds in log space with an explicit "off" zone at the range ends; decode to a mask
+   with `thresholds.keep_mask`.
+3. `easplatting/fitness.py`: mask -> render the 8 fitness views -> PSNR vs cached baselines + size; feasibility-first;
+   short-circuit empty masks; cache by rounded genome. See "How to measure fitness".
+4. Random search with the same evaluation budget first (validates the loop), then the GA (tournament + Gaussian
+   mutation + elitism; BLX/SBX crossover optional).
+5. VACC: one process per (scene x method), seeds sequentially, SLURM array over those, persistent
+   `TORCH_EXTENSIONS_DIR` ([`RUNNING.md`](RUNNING.md) section 8).
 
 ## Compute budget
 
@@ -13,9 +42,9 @@ NerfBaselines protocol.
 LightGaussian). Optional secondary table: the 8 NeRF-Synthetic scenes (cheap, but no unbounded
 background, which is where scene-specific thresholds should matter most).
 
-**Cluster:** see `docs/CLUSTER.md` (VACC GPUs, env, preemption, one GPU SKU for timings).
+**Cluster:** see [`RUNNING.md`](RUNNING.md) section 8 (VACC GPUs, env, preemption, one GPU SKU for timings).
 
-**Measured** (RTX 5070 Ti, 2026-11-06; reproduce with `python scripts/bench_eval.py`, and re-run it on each
+**Measured** (RTX 5070 Ti, 2026-11-06; reproduce with `python scripts/measure.py cost`, and re-run it on each
 VACC GPU type). One evaluation = mask -> prune -> render 8 train views at half res -> PSNR vs cached baselines.
 
 | | Result |
@@ -66,7 +95,7 @@ methods (GA, random, CMA-ES) x 30 seeds = 360 runs is ~10 GPU-hours at 3,000 eva
 
 ## How to measure fitness (assessment, 2026-11-11)
 
-Evidence: `python scripts/metrics_intuition.py` (bonsai, 8 train views, full res; writes pictures to
+Evidence: `python scripts/measure.py metrics` (bonsai, 8 train views, full res; writes pictures to
 `results/metrics_intuition/`: `levels.png` = what each quality level looks like, `frontier.png` = the curves).
 
 **What the metrics mean here** (all compare a pruned render with the unpruned one, which is the reference):
@@ -132,7 +161,7 @@ are mine. Full list of everything else is under "Open questions" below.
    suits it), but cross-method comparison needs hypervolume. (c) *Weighted sum + lambda sweep:* simplest,
    but the weight silently decides the trade-off (it did in the prototype).
 2. **Genes in the first version (Q4).** (a) *3 thresholds first, importance score next (lean):* opacity,
-   max scale, anisotropy already exist (`viewer.keep_mask`). (b) Importance score from the start: likely
+   max scale, anisotropy already exist (`thresholds.keep_mask`). (b) Importance score from the start: likely
    better compression, needs a per-scene importance pass first. (c) 3 genes + SH-degree cap: then size
    must be measured in bytes.
 3. **Scenes (Q12).** (a) *Indoor first, outdoor after (lean):* bonsai + counter (~2 min per 10k-eval run),

@@ -13,8 +13,8 @@
 # Check a machine first with: python scripts/check_env.py
 #
 # On a cluster login node (no GPU): NO_GPU_OK=1 TORCH_CUDA_ARCH_LIST="8.0;9.0;12.0" bash scripts/setup_local.sh
-# builds the env without a GPU; then run scripts/smoke_gsplat.py once on a GPU node to compile
-# gsplat's kernels into the shared cache. See docs/CLUSTER.md.
+# builds the env without a GPU; then run scripts/check_env.py --smoke-only once on a GPU node to compile
+# gsplat's kernels into the shared cache. See docs/RUNNING.md, section 8.
 #
 # What it installs
 #   torch + torchvision (CUDA build)      -> download.pytorch.org
@@ -89,7 +89,7 @@ echo "== GPU"
 if [ "$HAVE_GPU" = 1 ]; then
   nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
 elif [ "${NO_GPU_OK:-0}" = 1 ]; then
-  echo "no GPU on this host (NO_GPU_OK=1): building the env only; run scripts/smoke_gsplat.py on a GPU node later"
+  echo "no GPU on this host (NO_GPU_OK=1): building the env only; run scripts/check_env.py --smoke-only on a GPU node later"
 else
   echo "nvidia-smi failed: no NVIDIA driver? (on a login node without a GPU, use NO_GPU_OK=1 and set TORCH_CUDA_ARCH_LIST)"; exit 1
 fi
@@ -167,9 +167,9 @@ mkdir -p "$TORCH_EXTENSIONS_DIR"
 
 if [ "$HAVE_GPU" = 1 ]; then
   echo "== smoke test: compile/load gsplat kernels and render one Gaussian"
-  python "$ROOT/scripts/smoke_gsplat.py"
+  python "$ROOT/scripts/check_env.py" --smoke-only
 else
-  echo "== smoke test skipped (no GPU): run  python scripts/smoke_gsplat.py  on a GPU node to pre-warm the kernel cache"
+  echo "== smoke test skipped (no GPU): run  python scripts/check_env.py --smoke-only  on a GPU node to pre-warm the kernel cache"
 fi
 
 cat <<EOF

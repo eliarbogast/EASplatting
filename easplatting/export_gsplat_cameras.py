@@ -16,7 +16,7 @@ Why this exists
   its own images_<f>_png folder by downscaling the full-res images).
 
 Run from the project root, in the env that runs simple_trainer:
-    python export_gsplat_cameras.py --data data/tandt/truck --factor 1 \
+    python -m easplatting.export_gsplat_cameras --data data/tandt/truck --factor 1 \
         --examples ext/gsplat/examples --out results/truck_gsplat_7k/cameras.json
 
 --factor / --test-every / --normalize must match the training run's

@@ -5,7 +5,7 @@ Drag the threshold sliders and watch Gaussians disappear, with live kept count, 
 render time and PSNR of the current view vs the unpruned render. Doubles as a sanity check of the
 mask logic and as a way to eyeball what the EA's thresholds do before running it.
 
-    python viewer.py --scene pretrained/nb/gaussian-splatting/mipnerf360/bonsai/point_cloud.ply \
+    python -m easplatting.viewer --scene pretrained/nb/gaussian-splatting/mipnerf360/bonsai/point_cloud.ply \
         --cameras data/360_v2/bonsai --images images_2          # --cameras is optional
     # then open http://localhost:8080
     # Headless / cluster: binds to 127.0.0.1 only; from your laptop run
@@ -32,47 +32,13 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from cameras import Cameras, load_cameras, split_indices
-from gs_loader import activate, bytes_per_gaussian, load_scene, prune, save_ply
-from metrics import psnr_fast
-from render import render_views
+from easplatting.cameras import Cameras, load_cameras, split_indices
+from easplatting.gs_loader import activate, bytes_per_gaussian, load_scene, prune, save_ply
+from easplatting.metrics import psnr_fast
+from easplatting.render import render_views
+from easplatting.thresholds import gene_stats, keep_mask, slider_bounds
 
 VIEW_MODES = ("pruned", "unpruned", "removed only", "error x5")
-
-
-# ------------------------------------------------------- thresholds (pure, CPU-testable)
-
-def gene_stats(act):
-    """Per-Gaussian quantities the sliders threshold (compute once per scene)."""
-    smax, smin = act["scales"].amax(-1), act["scales"].amin(-1)
-    return dict(opacity=act["opacities"], max_scale=smax, anisotropy=smax / smin.clamp(min=1e-12))
-
-
-def _quantile(t, q, max_n=1_000_000):
-    """torch.quantile with a stride subsample (it refuses tensors of more than ~16M elements)."""
-    return float(torch.quantile(t.float()[:: max(1, len(t) // max_n)], q))
-
-
-def slider_bounds(stats, margin=0.01):
-    """
-    log10 slider ranges derived from the scene's own distributions. The 'off' end of each slider
-    keeps every Gaussian. Anisotropy has a few degenerate outliers (min scale ~ 0, ratio up to
-    1e10) that would squash the slider, so its range stops at the 99.9th percentile; only the
-    'off' end keeps those.
-    """
-    lg = lambda t: torch.log10(t.clamp(min=1e-12))
-    op, ms, an = lg(stats["opacity"]), lg(stats["max_scale"]), lg(stats["anisotropy"])
-    return dict(
-        min_opacity=(float(op.min()) - margin, math.log10(0.5)),
-        max_scale=(_quantile(ms, 0.5), float(ms.max()) + margin),
-        max_anisotropy=(0.0, _quantile(an, 0.999) + margin),
-    )
-
-
-def keep_mask(stats, min_opacity, max_scale, max_anisotropy):
-    """Boolean keep-mask from ACTIVATED-space thresholds (linear values, not log10)."""
-    return ((stats["opacity"] >= min_opacity) & (stats["max_scale"] <= max_scale)
-            & (stats["anisotropy"] <= max_anisotropy))
 
 
 # ------------------------------------------------------------------------ rendering

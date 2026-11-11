@@ -42,7 +42,7 @@ mipnerf360() {
     local prefixes=(--prefix "$s/sparse/" --prefix "$s/images_$r/")
     [ "${FULLRES:-0}" = "1" ] && prefixes+=(--prefix "$s/images/")
     echo "== Mip-NeRF 360 $s (images_$r$([ "${FULLRES:-0}" = 1 ] && echo ' + full-res'))"
-    python scripts/fetch_zip_members.py "$(zip_of "$s")" "${prefixes[@]}" --out data/360_v2
+    python scripts/download.py zip-members "$(zip_of "$s")" "${prefixes[@]}" --out data/360_v2
     # the extra-scenes zip may nest scenes differently; fail loudly rather than silently
     [ -d "data/360_v2/$s/sparse" ] || { echo "!! data/360_v2/$s/sparse missing — check the zip layout with --list"; exit 1; }
   done
@@ -54,10 +54,10 @@ nb_checkpoints() {
     local d="pretrained/nb/gaussian-splatting/mipnerf360/$s"
     mkdir -p "$d"
     echo "== NerfBaselines gaussian-splatting / mipnerf360 / $s"
-    python scripts/download.py -q "$NB_RESULTS/gaussian-splatting/mipnerf360/$s.json" "$d/$s.json" || echo "  (no metrics json)"
+    python scripts/download.py get -q "$NB_RESULTS/gaussian-splatting/mipnerf360/$s.json" "$d/$s.json" || echo "  (no metrics json)"
     if [ ! -f "$d/point_cloud.ply" ]; then
-      python scripts/download.py "$NB_RESULTS/gaussian-splatting/mipnerf360/$s.zip" "$d/$s.zip"
-      python scripts/download.py -q --unzip "$d/$s.zip" "$d/unzipped"
+      python scripts/download.py get "$NB_RESULTS/gaussian-splatting/mipnerf360/$s.zip" "$d/$s.zip"
+      python scripts/download.py unzip -q "$d/$s.zip" "$d/unzipped"
       # newest iteration's point_cloud.ply, wherever the archive put it
       local ply; ply=$(find "$d/unzipped" -name point_cloud.ply -path "*iteration_*" | sort -V | tail -1)
       [ -n "$ply" ] || ply=$(find "$d/unzipped" -name "*.ply" | head -1)
@@ -71,14 +71,14 @@ nb_checkpoints() {
 tandt() {
   if [ ! -d data/tandt/truck ]; then
     echo "== Tanks&Temples + Deep Blending (Inria preprocessed, undistorted)"
-    python scripts/download.py https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip data/tandt_db.zip
-    python scripts/download.py -q --unzip --no-overwrite data/tandt_db.zip data
+    python scripts/download.py get https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip data/tandt_db.zip
+    python scripts/download.py unzip -q --no-overwrite data/tandt_db.zip data
   fi
 }
 
 inria_pretrained() {
   # Standalone script from gsplat's main branch: range-extracts single scenes from the 14.7 GB models.zip.
-  [ -f ext/download_3dgs_paper_scenes.py ] || python scripts/download.py -q \
+  [ -f ext/download_3dgs_paper_scenes.py ] || python scripts/download.py get -q \
     https://raw.githubusercontent.com/nerfstudio-project/gsplat/main/examples/download_3dgs_paper_scenes.py \
     ext/download_3dgs_paper_scenes.py
   python ext/download_3dgs_paper_scenes.py --scenes "$@" --output-dir pretrained/inria

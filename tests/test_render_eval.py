@@ -5,15 +5,15 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 import torch
 
-from cameras import load_colmap
+from easplatting.cameras import load_colmap
 from conftest import FAKE, H, ROOT, W
-from gs_loader import activate, load_scene, prune, save_ply
-from render import (cache_baselines, gaussian_contributions, load_baselines, psnr, render_views,
+from easplatting.gs_loader import activate, load_scene, prune, save_ply
+from easplatting.metrics import psnr_fast
+from easplatting.render import (cache_baselines, gaussian_contributions, load_baselines, render_views,
                     save_png, select_indices)
 
 
@@ -42,7 +42,7 @@ def test_baseline_cache_roundtrip(tmp_path, scene_and_cams):
     b = load_baselines(tmp_path / "cache" / "b.pt", device="cpu")
     ref = render_views(activate(load_scene(ply)), cams, idx)
     assert b["indices"] == idx and b["num_gaussians"] == 4000
-    assert psnr(b["images"], ref) > 60                                            # fp16 error is negligible
+    assert float(psnr_fast(b["images"], ref).mean()) > 60                                            # fp16 error is negligible
 
 
 def test_contributions_match_fake_rasterizer(scene_and_cams):
@@ -57,7 +57,7 @@ def test_contributions_match_fake_rasterizer(scene_and_cams):
 
 def test_metrics_basic():
     pytest.importorskip("torchmetrics")
-    from metrics import ImageMetrics, psnr_fast, summarize
+    from easplatting.metrics import ImageMetrics, psnr_fast, summarize
     torch.manual_seed(0)
     x = torch.rand(3, 48, 48, 3)
     y = (x + 0.01).clamp(0, 1)
@@ -84,7 +84,7 @@ def test_evaluate_end_to_end(tmp_path, scene_and_cams):
 
     out = tmp_path / "eval"
     env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(FAKE), str(ROOT)]))
-    cmd = [sys.executable, str(ROOT / "evaluate.py"), "--device", "cpu", "--scene", str(ply),
+    cmd = [sys.executable, "-m", "easplatting.evaluate", "--device", "cpu", "--scene", str(ply),
            "--cameras", str(d), "--images", "images_2", "--split", "test", "--no-lpips",
            "--prune-opacity", "0.5", "--cache-baselines", "--nb-metrics", str(nb), "--out", str(out)]
     r = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=tmp_path)
@@ -108,7 +108,7 @@ def test_evaluate_refuses_misaligned_cameras(tmp_path, scene_and_cams):
     raw["means"] = raw["means"] + 100.0
     save_ply(raw, tmp_path / "far.ply")
     env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(FAKE), str(ROOT)]))
-    r = subprocess.run([sys.executable, str(ROOT / "evaluate.py"), "--device", "cpu", "--scene",
+    r = subprocess.run([sys.executable, "-m", "easplatting.evaluate", "--device", "cpu", "--scene",
                         str(tmp_path / "far.ply"), "--cameras", str(d), "--images", "images_2",
                         "--no-lpips", "--out", str(tmp_path / "e")], capture_output=True, text=True, env=env)
     assert r.returncode == 1 and "different frames" in r.stdout
@@ -120,7 +120,7 @@ def test_evaluate_refuses_misaligned_cameras(tmp_path, scene_and_cams):
     (0.30, "vgg-raw", True),      # raw (Inria) convention is not comparable, so LPIPS is skipped
 ])
 def test_crosscheck_enforces_lpips(tmp_path, lpips_ref, lpips_net, ok):
-    from evaluate import crosscheck
+    from easplatting.evaluate import crosscheck
     ref = tmp_path / "nb.json"
     ref.write_text(json.dumps({"metrics": {"psnr": 30.0, "ssim": 0.9, "lpips_vgg": lpips_ref}}))
     report = {"metrics_vs_gt": {"psnr": 30.01, "ssim": 0.901, "lpips": 0.2538}, "checks": {}}

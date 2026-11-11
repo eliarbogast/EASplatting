@@ -5,13 +5,12 @@ import math
 import warnings
 
 import numpy as np
-import pytest
 import torch
 from PIL import Image
 
-from cameras import Cameras, evenly_spaced, frustum_check, load_cameras, load_colmap, load_image, split_indices
+from easplatting.cameras import Cameras, evenly_spaced, frustum_check, load_cameras, load_colmap, load_image, split_indices
 from conftest import F, H, N_CAMS, W, write_colmap
-from gs_loader import activate, bytes_per_gaussian, load_ply, load_scene, prune, save_ply
+from easplatting.gs_loader import activate, bytes_per_gaussian, load_ply, load_scene, prune, save_ply
 
 
 # ------------------------------------------------------------------ scenes

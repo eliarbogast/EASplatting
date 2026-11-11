@@ -17,10 +17,10 @@ the full scene once and then just mask it:
     cams   = load_cameras("data/garden", images="images_4").to("cuda")
     base   = load_baselines("cache/garden_train.pt", device="cuda")
     imgs   = render_views(prune(full, mask), cams, base["indices"])
-    loss   = psnr(imgs, base["images"])
+    loss   = psnr_fast(imgs, base["images"]).mean()
 
 Command line (needs a CUDA GPU + `pip install gsplat`):
-    python render.py --scene point_cloud.ply --cameras data/garden --images images_4 \
+    python -m easplatting.render --scene point_cloud.ply --cameras data/garden --images images_4 \
         --split train --every 8 --out cache/garden_train.pt --png-dir renders/ \
         --check-gt --demo-prune 0.005 --fps
 
@@ -34,8 +34,9 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from cameras import Cameras, evenly_spaced, load_cameras, load_image, split_indices
-from gs_loader import activate, load_scene, prune
+from easplatting.cameras import Cameras, evenly_spaced, load_cameras, load_image, split_indices
+from easplatting.gs_loader import activate, load_scene, prune
+from easplatting.metrics import psnr_fast
 
 # ------------------------------------------------------------------- rendering
 
@@ -202,19 +203,6 @@ def measure_fps(splats, cams: Cameras, indices=None, *, n_warmup=10, n_iters=100
 # ----------------------------------------------------------------- helpers
 
 
-def psnr(a, b, max_db=None):
-    """
-    Mean per-view PSNR (dB) between (V, H, W, 3) image stacks in [0, 1].
-    Identical images give inf; pass max_db (e.g. 60) to cap for fitness use.
-    Placeholder until metrics.py exists — use one implementation everywhere.
-    """
-    mse = ((a.float() - b.float()) ** 2).flatten(1).mean(dim=1)
-    db = -10 * torch.log10(mse)
-    if max_db is not None:
-        db = db.clamp(max=max_db)
-    return db.mean().item()
-
-
 def save_png(img, path):
     from PIL import Image
     arr = (img.detach().float().clamp(0, 1).cpu().numpy() * 255 + 0.5).astype(np.uint8)
@@ -290,7 +278,7 @@ def main():
         else:
             W, H = cams.subset(idx).size
             gt = torch.stack([load_image(cams.image_paths[i], args.background, (W, H)) for _, i in have])
-            p = psnr(base[[j for j, _ in have]].cpu(), gt)
+            p = float(psnr_fast(base[[j for j, _ in have]].cpu(), gt).mean())
             print(f"Unpruned vs GT photos: {p:.2f} dB over {len(have)} views "
                   f"(expect mid-20s to 30s on train views; < 15 dB suggests a camera/background bug)")
 
@@ -300,7 +288,7 @@ def main():
         imgs = render_views(pruned, cams, idx, batch_size=args.batch_size, **rkw)
         kept = int(mask.sum())
         print(f"Demo prune (opacity > {args.demo_prune}): kept {kept:,}/{N:,} ({kept / N:.1%}), "
-              f"PSNR vs unpruned {psnr(imgs, base, max_db=60):.2f} dB (capped at 60)")
+              f"PSNR vs unpruned {float(psnr_fast(imgs, base, max_db=60).mean()):.2f} dB (capped at 60)")
 
     if args.fps:
         r = measure_fps(full, cams, idx, **rkw)

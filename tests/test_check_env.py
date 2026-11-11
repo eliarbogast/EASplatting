@@ -4,7 +4,6 @@ import os
 import subprocess
 import sys
 
-import pytest
 
 from conftest import ROOT
 
@@ -84,3 +83,10 @@ def test_script_flags_old_driver_and_pascal(tmp_path):
 def test_script_fails_cleanly_without_gpu(tmp_path):
     r = _run(tmp_path, "9.0", "12.8", exit_code=9)       # nvidia-smi present but failing
     assert r.returncode == 1 and "Traceback" not in r.stderr and "no GPU" in r.stdout
+
+
+def test_smoke_only_fails_cleanly_or_passes(tmp_path):
+    """--smoke-only needs a GPU + gsplat; where they are missing it must say so, not crash (it once raised a TypeError)."""
+    env = dict(os.environ, PATH=_stub(tmp_path, "9.0", "12.8") + os.pathsep + os.environ["PATH"])
+    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "check_env.py"), "--smoke-only"], capture_output=True, text=True, env=env)
+    assert r.returncode in (0, 1) and "Traceback" not in r.stderr and r.stdout.strip()

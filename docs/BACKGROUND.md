@@ -1,6 +1,6 @@
 # Evolving Pruning Thresholds for 3D Gaussian Splatting — Developer Notes
 
-Long reference doc (skim the section you need; start at `README.md`). Notes for the EA-based
+Long reference doc (skim the section you need; start at `README.md`; plan and status are in `EA_PLAN.md`). Notes for the EA-based
 3DGS pruning project (Eli & Areeb). Covers file
 formats and conventions, metrics, fitness design, genome/operators, baselines,
 experiment protocol, VACC usage, and known pitfalls. Pairs with `gs_loader.py`.
@@ -83,7 +83,7 @@ bugs come from a missed activation or SH reshape.
   Unpruned baselines = NerfBaselines `gaussian-splatting` checkpoints (trained on the
   train split only, with published per-scene metrics to cross-check against;
   reproduced 3DGS average 27.43 / 0.814 / 0.257 vs. paper 27.20 / – / 0.214).
-  Get them with `scripts/get_data.sh` — see `docs/LOCAL_PIPELINE.md`.
+  Get them with `scripts/get_data.sh` — see `docs/RUNNING.md`.
 - The Inria authors also released **pretrained models** for Mip-NeRF 360, T&T, and
   Deep Blending; these may have been trained on all images (including test views),
   so use them only for quick render tests.
@@ -228,7 +228,7 @@ Most interpretable claim: "X% fewer Gaussians at < 0.5 dB loss."
 
 - **Encode in transformed space** (log / logit): thresholds span orders of
   magnitude; linear encoding wastes most of the search range.
-- Use `python gs_loader.py scene.ply` to read the percentile distributions and
+- Use `python -m easplatting.gs_loader scene.ply` to read the percentile distributions and
   set gene bounds from them (e.g. min-opacity range ≈ [1e-4, 0.2]).
 - **Max-scale pruning is dangerous** in unbounded scenes: sky/background are
   represented by huge Gaussians — removing them punches holes. This is actually
@@ -404,29 +404,17 @@ startup, and loading a ~500 MB scene.
 
 ---
 
-## 13. Code layout (repo: eliarbogast/EASplatting)
+## 13. Code layout
+
+The current layout is in `README.md`. Planned additions as the EA is built (all inside `easplatting/` unless noted):
 
 ```
-EASplatting/
-├── gs_loader.py          # load/activate/prune/save (done)
-├── cameras.py            # COLMAP / cameras.json / transforms.json → viewmats, Ks, splits (done)
-├── render.py             # gsplat wrapper, baseline caching, contributions, FPS (done)
-├── metrics.py            # PSNR / SSIM / LPIPS (done; one implementation each)
-├── evaluate.py           # scene + cameras → renders → metrics → report.json (done)
-├── export_gsplat_cameras.py  # cameras in gsplat-trainer's normalized frame (done)
-├── viewer.py             # interactive threshold-pruning viewer (done)
-├── scripts/              # setup_local.sh, get_data.sh, train_gsplat.sh, fetch_zip_members.py
-├── tests/                # CPU tests with a fake gsplat
-├── genome.py             # gene bounds, encode/decode, genome → keep-mask
-├── fitness.py            # mask → renders → metrics → fitness (A/B/C variants)
-├── algorithms/
-│   ├── ga.py             # tournament + SBX/BLX + Gaussian mutation + elitism
-│   ├── random_search.py
-│   └── cmaes.py          # optional (pip install cma)
-├── run.py                # one EA run from a config; writes results/{run_id}.jsonl
-├── configs/              # YAML per experiment
-├── slurm/array.sbatch    # array over configs × seeds
-└── analysis/             # plots + stats notebooks
+easplatting/genome.py     # gene bounds, encode/decode, genome -> keep-mask (uses thresholds.py)
+easplatting/fitness.py    # mask -> renders -> metrics -> fitness
+easplatting/search.py     # random search, GA (tournament + mutation + elitism), optional CMA-ES
+easplatting/run.py        # one EA run from a config; writes results/{run_id}.jsonl
+configs/                  # YAML per experiment
+slurm/array.sbatch        # array over configs x seeds
 ```
 
 Build order: `gs_loader` → `cameras` + `render` (verify unpruned vs. GT) →

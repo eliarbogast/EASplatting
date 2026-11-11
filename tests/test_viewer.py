@@ -6,8 +6,9 @@ import pytest
 import torch
 
 from conftest import H, W
-from gs_loader import activate
-from viewer import ViewerState, gene_stats, keep_mask, render_view, slider_bounds
+from easplatting.gs_loader import activate
+from easplatting.thresholds import gene_stats, keep_mask, slider_bounds
+from easplatting.viewer import ViewerState, render_view
 
 
 @pytest.fixture()

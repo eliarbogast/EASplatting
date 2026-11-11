@@ -30,10 +30,10 @@ python simple_trainer.py default \
   --disable_viewer --disable_video
 cd "$ROOT"
 
-python export_gsplat_cameras.py --data "$SCENE" --factor "$FACTOR" \
+python -m easplatting.export_gsplat_cameras --data "$SCENE" --factor "$FACTOR" \
   --examples ext/gsplat/examples --out "$OUT/cameras.json"
 
 echo
 echo "Next:"
-echo "  python evaluate.py --scene $OUT/ckpts/ckpt_${LAST}_rank0.pt --cameras $OUT/cameras.json \\"
+echo "  python -m easplatting.evaluate --scene $OUT/ckpts/ckpt_${LAST}_rank0.pt --cameras $OUT/cameras.json \\"
 echo "      --split test --lpips-net alex --gsplat-stats $OUT/stats/val_step${LAST}.json --out results/eval_${NAME}_gsplat"

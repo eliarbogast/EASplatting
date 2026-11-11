@@ -7,17 +7,17 @@ between machines (local GPU vs VACC).
 
 Examples
   # Main benchmark: NerfBaselines 3DGS checkpoint + Mip-NeRF 360 (official images_2 for indoor)
-  python evaluate.py --scene pretrained/nb/gaussian-splatting/mipnerf360/bonsai/point_cloud.ply \
+  python -m easplatting.evaluate --scene pretrained/nb/gaussian-splatting/mipnerf360/bonsai/point_cloud.ply \
       --cameras data/360_v2/bonsai --images images_2 --split test \
       --nb-metrics pretrained/nb/gaussian-splatting/mipnerf360/bonsai/bonsai.json \
       --out results/eval_bonsai_nb3dgs
 
   # Small first test: Inria pretrained truck + the dataset's raw COLMAP cameras
-  python evaluate.py --scene pretrained/inria/truck/point_cloud.ply --cameras data/tandt/truck \
+  python -m easplatting.evaluate --scene pretrained/inria/truck/point_cloud.ply --cameras data/tandt/truck \
       --split test --out results/eval_truck_inria
 
   # Route B: scene you trained with gsplat + the cameras exported from its parser
-  python evaluate.py --scene results/truck_gsplat_7k/ckpts/ckpt_6999_rank0.pt \
+  python -m easplatting.evaluate --scene results/truck_gsplat_7k/ckpts/ckpt_6999_rank0.pt \
       --cameras results/truck_gsplat_7k/cameras.json --split test --lpips-net alex \
       --gsplat-stats results/truck_gsplat_7k/stats/val_step6999.json \
       --out results/eval_truck_gsplat_7k
@@ -44,10 +44,10 @@ from pathlib import Path
 
 import torch
 
-from cameras import _image_size, frustum_check, load_cameras, load_image
-from gs_loader import activate, bytes_per_gaussian, load_scene, prune
-from metrics import ImageMetrics, merge, psnr_fast, summarize
-from render import measure_fps, render_views, save_png, select_indices
+from easplatting.cameras import _image_size, frustum_check, load_cameras, load_image
+from easplatting.gs_loader import activate, bytes_per_gaussian, load_scene, prune
+from easplatting.metrics import ImageMetrics, merge, psnr_fast, summarize
+from easplatting.render import measure_fps, render_views, save_png, select_indices
 
 
 def environment():

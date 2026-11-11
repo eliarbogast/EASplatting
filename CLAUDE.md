@@ -7,25 +7,28 @@ Gaussians → render with gsplat → compare to unpruned renders → fitness. No
 **Current phase: implementing the EA** (genome -> fitness -> random search -> GA). The local gsplat
 bring-up is done and verified on Eli's machine (see `docs/bring_up/README.md`).
 
-Start at `README.md` (status + doc map). `HANDOFF.md`: decisions and next steps. `docs/EA_PLAN.md`:
-open design questions, compute budget. `docs/GS_PRUNING_NOTES.md`: background (metrics, fitness
-design, baselines, pitfalls). `docs/LOCAL_PIPELINE.md`: how to run things.
+Start at `README.md` (status, quickstart, layout, doc map). `docs/EA_PLAN.md`: decisions, next steps, open
+questions, compute budget, how to measure fitness. `docs/RUNNING.md`: how to run, check and measure things, and
+the VACC checklist. `docs/BACKGROUND.md`: long reference (metrics, fitness options, baselines, pitfalls).
 
 ## Layout
-- `gs_loader.py` load/activate/prune/save scenes (Inria PLY, gsplat `.pt`)
-- `cameras.py` COLMAP / Inria `cameras.json` / Blender → `Cameras` (world→camera, OpenCV)
-- `render.py` gsplat wrapper, baseline caching, per-Gaussian contributions, FPS
-- `metrics.py` the ONLY PSNR/SSIM/LPIPS implementation
-- `viewer.py` interactive viser viewer for threshold pruning; `gene_stats`/`keep_mask` = the
-  threshold -> mask logic (reuse it in the genome decoder)
-- `evaluate.py` end-to-end check: scene + cameras → renders → metrics → `report.json`
-- `export_gsplat_cameras.py` cameras in gsplat-trainer's normalized frame
-- `scripts/` `check_env.py` (machine report; ask for its output when debugging someone's setup),
-  env setup (`NO_GPU_OK=1` for GPU-less cluster login nodes), data download (`download.py`
-  replaces wget/curl/unzip), gsplat training, zip range-fetcher, `smoke_gsplat.py` (kernel
-  pre-warm), `prefetch_weights.py` (LPIPS), `bench_eval.py` (per-evaluation cost; feeds EA_PLAN's budget),
-  `metrics_intuition.py` (what the metrics mean for pruning; feeds EA_PLAN's fitness assessment)
+Code lives in the `easplatting/` package; run tools as `python -m easplatting.<name>` from the repo root.
+- `easplatting/gs_loader.py` load/activate/prune/save scenes (Inria PLY, gsplat `.pt`)
+- `easplatting/cameras.py` COLMAP / Inria `cameras.json` / Blender -> `Cameras` (world->camera, OpenCV)
+- `easplatting/render.py` gsplat wrapper, baseline caching, per-Gaussian contributions, FPS
+- `easplatting/metrics.py` the ONLY PSNR/SSIM/LPIPS implementation
+- `easplatting/thresholds.py` the genes as threshold -> keep-mask logic (`gene_stats`, `slider_bounds`,
+  `keep_mask`); the genome decoder reuses it
+- `easplatting/evaluate.py` end-to-end check: scene + cameras -> renders -> metrics -> `report.json`
+- `easplatting/viewer.py` interactive viser viewer for threshold pruning
+- `easplatting/export_gsplat_cameras.py` cameras in gsplat-trainer's normalized frame
+- `scripts/` `setup_local.sh` (`NO_GPU_OK=1` for GPU-less cluster login nodes), `get_data.sh`,
+  `train_gsplat.sh`; `check_env.py` (machine report; ask for its output when debugging someone's setup;
+  `--smoke-only` pre-warms gsplat, `--prefetch-weights` fetches LPIPS weights); `download.py` (replaces
+  wget/curl/unzip; also range-extracts from remote zips); `measure.py` (`cost` feeds EA_PLAN's budget,
+  `metrics` feeds its fitness assessment)
 - `tests/` CPU tests with a fake gsplat (`tests/fake_gsplat`)
+- `docs/archive/` history only (bring-up results); don't update it
 
 ## Conventions that must not drift
 - Scene dicts hold RAW params: log scales, logit opacity, unnormalized quats, SH split

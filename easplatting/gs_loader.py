@@ -20,7 +20,7 @@ and `save_ply()` to write a pruned scene (for viewers / file-size numbers).
 Requires: numpy, torch, plyfile   (pip install plyfile)
 
 Quick look at a scene from the command line:
-    python gs_loader.py path/to/point_cloud.ply
+    python -m easplatting.gs_loader path/to/point_cloud.ply
 """
 
 import math
@@ -30,8 +30,6 @@ from pathlib import Path
 import numpy as np
 import torch
 from plyfile import PlyData, PlyElement
-
-SH_C0 = 0.28209479177387814  # degree-0 SH constant: rgb = 0.5 + SH_C0 * sh0
 
 
 # ---------------------------------------------------------------- loading
@@ -103,11 +101,6 @@ def activate(raw):
         colors=sh,                                                     # SH coeffs
         sh_degree=int(math.isqrt(sh.shape[1])) - 1,                    # 0..3
     )
-
-
-def base_rgb(raw):
-    """View-independent RGB color per Gaussian (handy for debugging/plots)."""
-    return (0.5 + SH_C0 * raw["sh0"][:, 0, :]).clamp(0, 1)
 
 
 # ------------------------------------------------------- pruning / saving
@@ -184,5 +177,5 @@ def summarize(raw):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        sys.exit("usage: python gs_loader.py <scene.ply | ckpt.pt>")
+        sys.exit("usage: python -m easplatting.gs_loader <scene.ply | ckpt.pt>")
     summarize(load_scene(sys.argv[1]))

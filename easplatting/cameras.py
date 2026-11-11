@@ -23,7 +23,7 @@ Train/test split: images are sorted by name and every 8th one is test
 NeRF-Synthetic instead has separate transforms_train/test.json files.
 
 Sanity check from the command line (CPU only, no gsplat needed):
-    python cameras.py <data_dir | cameras.json | transforms.json> [--images images_4]
+    python -m easplatting.cameras <data_dir | cameras.json | transforms.json> [--images images_4]
                       [--scene point_cloud.ply]
 `--scene` runs a frustum check: what fraction of Gaussian centers land in front
 of / inside each camera. Near 0% means a pose-convention bug.
@@ -438,6 +438,6 @@ if __name__ == "__main__":
     cams = load_cameras(args.path, images=args.images, split=args.split, image_dir=args.image_dir)
     means = None
     if args.scene:
-        from gs_loader import load_scene
+        from easplatting.gs_loader import load_scene
         means = load_scene(args.scene)["means"]
     summarize(cams, means)

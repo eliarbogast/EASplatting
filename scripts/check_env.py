@@ -1,8 +1,10 @@
 """
 check_env.py — will the pipeline work on THIS machine? One command, paste the output when asking for help.
 
-    python scripts/check_env.py            # report only (safe anywhere, even before torch is installed)
-    python scripts/check_env.py --smoke    # also compile gsplat's kernels and render one Gaussian (GPU needed)
+    python scripts/check_env.py                    # report only (safe anywhere, even before torch is installed)
+    python scripts/check_env.py --smoke            # also compile gsplat's kernels and render one Gaussian (GPU needed)
+    python scripts/check_env.py --smoke-only       # just that render: the kernel-cache pre-warm job on a cluster
+    python scripts/check_env.py --prefetch-weights # download the LPIPS backbone weights (login node, before offline jobs)
 
 Checks the OS, the NVIDIA driver and GPUs, whether the installed torch ships kernels for each GPU,
 nvcc / host compiler (for gsplat's JIT build), required tools, Python packages, env vars and disk.
@@ -164,7 +166,7 @@ def check_gpu(rep):
     gpus = parse_gpus(csv)
     if rc != 0 or not gpus:
         rep.add("FAIL", "nvidia-smi is present but reports no GPU (driver not loaded? no GPU allocated?)",
-                "on SLURM request one: --gres=gpu:1 or --constraint (see docs/CLUSTER.md)")
+                "on SLURM request one: --gres=gpu:1 or --constraint (see docs/RUNNING.md, section 8)")
         return []
     for i, g in enumerate(gpus):
         cc = f"sm_{g['cc'][0]}{g['cc'][1]}" if g["cc"] else "sm_?"
@@ -261,12 +263,54 @@ def check_python_env(rep, gpus, smoke):
         if not cuda_ok:
             rep.add("FAIL", "--smoke needs a working GPU")
         else:
-            rep.info("running scripts/smoke_gsplat.py (compiles gsplat on first use: ~1-5 minutes) ...")
-            rc, out = run([sys.executable, str(ROOT / "scripts" / "smoke_gsplat.py")], timeout=3600)
-            last = (out.strip().splitlines() or ["(no output)"])[-1]
-            rep.add("OK" if rc == 0 else "FAIL", f"gsplat render: {last}")
+            rep.info("compiling gsplat on first use (~1-5 minutes) and rendering one Gaussian ...")
+            ok, msg = smoke_render()
+            rep.add("OK" if ok else "FAIL", f"gsplat render: {msg}")
     else:
         rep.info("(run with --smoke to also compile gsplat and render a test image)")
+
+
+def smoke_render():
+    """Compile/load gsplat's CUDA kernels and render one Gaussian. Returns (ok, one-line message); never raises."""
+    try:
+        return _smoke_render()
+    except Exception as e:  # noqa: BLE001  (no GPU, gsplat missing, kernel build failed ...)
+        return False, f"{type(e).__name__}: {e}"
+
+
+def _smoke_render():
+    import time
+
+    import gsplat
+    import torch
+    from gsplat import rasterization
+    if not torch.cuda.is_available():
+        return False, "no CUDA GPU available"
+    t = time.time()
+    d = "cuda"
+    img, _, _ = rasterization(
+        means=torch.tensor([[0., 0., 3.]], device=d), quats=torch.tensor([[1., 0, 0, 0]], device=d),
+        scales=torch.full((1, 3), 0.3, device=d), opacities=torch.tensor([0.9], device=d),
+        colors=torch.tensor([[1., 0.5, 0.2]], device=d),
+        viewmats=torch.eye(4, device=d)[None], Ks=torch.tensor([[[100., 0, 64], [0, 100., 64], [0, 0, 1]]], device=d),
+        width=128, height=128)
+    torch.cuda.synchronize()
+    c = img[0, 64, 64].tolist()
+    cap = "".join(map(str, torch.cuda.get_device_capability()))
+    msg = (f"gsplat {gsplat.__version__} on {torch.cuda.get_device_name()} (sm_{cap}): center pixel "
+           f"{[round(x, 3) for x in c]} (expect ~[0.9, 0.45, 0.18]); first call took {time.time() - t:.1f}s")
+    return c[0] > 0.5, msg
+
+
+def prefetch_weights():
+    """Download the LPIPS backbones (torchvision VGG16 + AlexNet) into TORCH_HOME / the torch hub cache."""
+    import torch
+    sys.path.insert(0, str(ROOT))
+    from easplatting.metrics import ImageMetrics
+    for net in ("vgg", "alex"):
+        ImageMetrics(device="cpu", lpips_net=net)._lpips_model()
+        print(f"lpips-{net}: ok")
+    print("weights cached under:", Path(torch.hub.get_dir()) / "checkpoints")
 
 
 def check_env_vars_and_disk(rep):
@@ -286,7 +330,16 @@ def check_env_vars_and_disk(rep):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--smoke", action="store_true", help="also compile gsplat and render one Gaussian (needs a GPU)")
+    ap.add_argument("--smoke-only", action="store_true", help="only the gsplat compile + render (cluster cache pre-warm)")
+    ap.add_argument("--prefetch-weights", action="store_true", help="only download the LPIPS backbone weights")
     args = ap.parse_args()
+    if args.prefetch_weights:
+        prefetch_weights()
+        return
+    if args.smoke_only:
+        ok, msg = smoke_render()
+        print(msg)
+        sys.exit(0 if ok else 1)
 
     rep = Report()
     print("EASplatting environment check")
