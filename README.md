@@ -33,6 +33,7 @@ Datasets, checkpoints and results are downloaded or generated locally and are gi
 |---|---|
 | Run, check or measure anything; use the viewer; run on the UVM VACC | [`docs/RUNNING.md`](docs/RUNNING.md) |
 | Know the plan, decisions made, open questions, compute budget, how to measure fitness | [`docs/EA_PLAN.md`](docs/EA_PLAN.md) |
+| See the first EA test run and how the low-res fitness views are rendered | [`docs/EA_TEST.md`](docs/EA_TEST.md) |
 | Look up background (metrics, fitness options, baselines, pitfalls) | [`docs/BACKGROUND.md`](docs/BACKGROUND.md) (long; reference) |
 | See the first real-GPU results | [`docs/archive/bring_up/`](docs/archive/bring_up/README.md) |
 | Rules for Claude Code sessions | [`CLAUDE.md`](CLAUDE.md) |
@@ -45,7 +46,9 @@ easplatting/           the code; run a tool with  python -m easplatting.<name>
   cameras.py             COLMAP, Inria cameras.json, Blender -> Cameras (world->camera, OpenCV)
   render.py              gsplat wrapper, baseline caching, contributions, FPS
   metrics.py             the only PSNR / SSIM / LPIPS implementation
-  thresholds.py          pruning genes as threshold -> keep-mask logic (reused by the genome)
+  thresholds.py          pruning genes as threshold -> keep-mask logic
+  genome.py, fitness.py  genome -> thresholds; feasibility-first fitness (render fitness views, PSNR vs unpruned)
+  ea.py, run_ea.py       minimal evolutionary algorithm (mutation + tournament selection) and a test run on bonsai
   evaluate.py            scene + cameras -> renders -> metrics -> report.json (with cross-checks)
   viewer.py              interactive threshold-pruning viewer (viser)
   export_gsplat_cameras.py   cameras in gsplat-trainer's normalized frame

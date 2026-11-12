@@ -9,7 +9,9 @@ Background and fitness-design options: [`BACKGROUND.md`](BACKGROUND.md) sections
 **Done and verified on a real GPU** (RTX 5070 Ti; results in [`RUNNING.md`](RUNNING.md) section 7): scene loading,
 cameras, rendering, metrics (match NerfBaselines and gsplat's own eval), the evaluation report, the interactive
 viewer, the threshold -> mask logic (`easplatting/thresholds.py`), data/setup/measurement scripts. 37 CPU tests.
-**Not started:** `genome.py`, `fitness.py`, the search algorithms, the VACC job scripts.
+**First EA test works** (branch `ea-test`, built on Areeb's draft): genome decoding, feasibility-first fitness and a minimal
+mutation + tournament loop; `python -m easplatting.run_ea` reaches 71% of bonsai's Gaussians kept at 40.3 dB in 5 generations (4 s).
+**Not started:** random-search baseline, config-driven runs and logging, the full experiment loop, the VACC job scripts.
 
 **Decisions already made**
 - **Renderer: gsplat 1.5.3** (latest release; 1.6.0 on main is unreleased with a different trainer API). Batched
