@@ -38,6 +38,11 @@ python -m easplatting.run_ea      # needs the bonsai data (scripts/get_data.sh) 
 - For scale: 40 dB vs the unpruned render is a real loss of roughly 0.8 dB PSNR vs the photos on bonsai
   ([`EA_PLAN.md`](EA_PLAN.md), "How to measure fitness").
 
+## Follow-up (2026-11-13)
+A four-scene comparison (bonsai, counter, garden, bicycle) found that a 64-eval 1D opacity sweep matches this GA,
+because the best solutions turn max-scale and anisotropy off. Results and the planned next directions (importance-score
+gene, Pareto front, per-scene quality floor) are in [`EA_PLAN.md`](EA_PLAN.md), "Findings so far and planned directions".
+
 ## Rendering low-res views for the fitness
 ```python
 train_views = cams.subset(select_indices(len(cams), "train", k=8))   # 8 evenly spaced train views
