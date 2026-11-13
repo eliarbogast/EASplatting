@@ -46,16 +46,16 @@ background, which is where scene-specific thresholds should matter most).
 
 **Cluster:** see [`RUNNING.md`](RUNNING.md) section 8 (VACC GPUs, env, preemption, one GPU SKU for timings).
 
-**Measured** (RTX 5070 Ti, 2026-11-06; reproduce with `python scripts/measure.py cost`, and re-run it on each
+**Measured** (RTX 5070 Ti, `cost` rows re-run 2026-11-13, within ~3% of the 2026-11-06 run; reproduce with `python scripts/measure.py cost`, and re-run it on each
 VACC GPU type). One evaluation = mask -> prune -> render 8 train views at half res -> PSNR vs cached baselines.
 
 | | Result |
 |---|---|
-| Cost per evaluation | **~9-10 ms per million Gaussians** (8 views, half res), linear in N: bonsai 1.25 M = 12.7 ms, truck 2.05 M = 19.8 ms, tiled 5 M = 45 ms, tiled 10 M = 87 ms |
-| Memory | ~1.1 GB per million Gaussians at 8 views per call (10 M = 11.4 GB); lower `batch_size` beyond that |
-| GPU sharing | 1 / 2 / 4 processes on one GPU = 76 / 71 / 74 evals/s aggregate: **one process saturates the GPU**; throughput scales with GPU count, not processes |
+| Cost per evaluation | **~9-10 ms per million Gaussians** (8 views, half res), linear in N: bonsai 1.25 M = 12.5 ms, truck 2.05 M = 19.7 ms, tiled 5 M = 46 ms, tiled 10 M = 89 ms |
+| Memory | ~1.1 GB per million Gaussians at 8 views per call (10 M = 11.3 GB of the 16 GB card); lower `batch_size` beyond that |
+| GPU sharing | 1 / 2 / 4 processes on one GPU = 74 / 69 / 72 evals/s aggregate: **one process saturates the GPU**; throughput scales with GPU count, not processes |
 | Views / resolution | 16 views = 2x cost; half res saves ~35%, quarter res ~45% (cost is per-Gaussian projection and sorting, not pixels) |
-| Metrics in the loop | PSNR +0.25 ms; SSIM +8 ms (+60%); LPIPS-alex +12 ms (2x); **LPIPS-VGG +184 ms (16x)**: keep it for the final eval |
+| Metrics in the loop | PSNR +0.25 ms; SSIM +8 ms (+65%); LPIPS-alex +13 ms (2x); **LPIPS-VGG +194 ms (16x)**: keep it for the final eval |
 | Cheap vs full fitness | 4-16 views at 0.25-0.5 scale rank 40 random genomes with Spearman 0.995-0.998 vs 64 views at full res |
 | Outdoor scenes | not measured; estimate ~50-60 ms/eval at the ~5-6 M Gaussians the outdoor scenes have, from the linear scaling above |
 
