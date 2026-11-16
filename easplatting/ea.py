@@ -85,7 +85,7 @@ def evolutionary_algorithm(
         kept_over_time[generation_num] = solution.kept
         psnr_over_time[generation_num] = solution.psnr
 
-        # diversity - average std of each gene
+        # diversity - average std of gene
         diversity_over_time[generation_num] = np.mean(
             np.std([individual.genome for individual in population], axis=0)
         )
