@@ -12,3 +12,8 @@ class Individual:
 
     def eval_fitness(self):
         self.fitness, self.kept, self.psnr = self.fitness_function(self.genome)
+
+
+def make_fitness_function(scene, stats, bounds, cameras, baselines, tau):
+    """ returns fitness_function(genome) -> (fitness, kept fraction, PSNR) """
+    raise NotImplementedError
