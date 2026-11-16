@@ -37,7 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 os.chdir(ROOT)
 
-from easplatting.cameras import Cameras, evenly_spaced, load_cameras, load_image, split_indices  # noqa: E402
+from easplatting.cameras import evenly_spaced, load_cameras, load_image, split_indices  # noqa: E402
 from easplatting.gs_loader import activate, load_scene, prune  # noqa: E402
 from easplatting.metrics import ImageMetrics, psnr_fast  # noqa: E402
 from easplatting.render import render_views  # noqa: E402
@@ -50,14 +50,6 @@ INF = float("inf")
 
 
 # ------------------------------------------------------------------------------------ helpers
-
-
-def scaled(cams, s):
-    """The same cameras at image scale s (intrinsics and size)."""
-    Ks = cams.Ks.clone()
-    Ks[:, :2, :] *= s
-    return Cameras(names=cams.names, viewmats=cams.viewmats, Ks=Ks,
-                   widths=[int(w * s) for w in cams.widths], heights=[int(h * s) for h in cams.heights])
 
 
 def timed(fn, n=20):
@@ -86,7 +78,7 @@ def load_scene_and_views(spec, copies=1, scale=0.5, n_views=8):
     cams = load_cameras(spec[1], images=spec[2]) if spec[2] else load_cameras(spec[1])
     train, _ = split_indices(len(cams), 8)
     views = cams.subset(evenly_spaced(train, n_views))
-    return act, views, scaled(views, scale)
+    return act, views, views.scaled(scale)
 
 
 # ------------------------------------------------------------------------------------- cost
@@ -182,7 +174,7 @@ def metrics():
     W, H = sub.size
     gt = torch.stack([load_image(sub.image_paths[j], (0, 0, 0), (W, H)) for j in range(8)]).to(DEV)
     base = render_views(act, sub, batch_size=8)
-    half = scaled(sub, 0.5)
+    half = sub.scaled(0.5)
     base_half = render_views(act, half, batch_size=8)
     m_vgg, m_alex = ImageMetrics(DEV, "vgg"), ImageMetrics(DEV, "alex")
 

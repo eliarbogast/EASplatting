@@ -19,6 +19,9 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
 - `easplatting/metrics.py` the ONLY PSNR/SSIM/LPIPS implementation
 - `easplatting/thresholds.py` the genes as threshold -> keep-mask logic (`gene_stats`, `slider_bounds`,
   `keep_mask`); the genome decoder reuses it
+- `easplatting/genome.py` (genome in [0,1]^3 -> thresholds, with "off" zones), `fitness.py` (`Individual`,
+  feasibility-first `make_fitness_function`), `ea.py` (`evolutionary_algorithm`: mutation +
+  tournament selection, elitism, no crossover; keep its comments short), `run_ea.py` (`python -m easplatting.run_ea`)
 - `easplatting/evaluate.py` end-to-end check: scene + cameras -> renders -> metrics -> `report.json`
 - `easplatting/viewer.py` interactive viser viewer for threshold pruning
 - `easplatting/export_gsplat_cameras.py` cameras in gsplat-trainer's normalized frame

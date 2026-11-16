@@ -66,6 +66,13 @@ class Cameras:
             image_paths=[self.image_paths[i] for i in idx] if self.image_paths else [],
         )
 
+    def scaled(self, s):
+        """The same cameras at image scale s (intrinsics and size)."""
+        Ks = self.Ks.clone()
+        Ks[:, :2, :] *= s
+        return Cameras(self.names, self.viewmats, Ks, [int(w * s) for w in self.widths],
+                       [int(h * s) for h in self.heights], self.image_paths)
+
     def to(self, device):
         return Cameras(self.names, self.viewmats.to(device), self.Ks.to(device),
                        self.widths, self.heights, self.image_paths)
