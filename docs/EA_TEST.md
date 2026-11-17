@@ -1,10 +1,11 @@
-# EA test run (branch `ea-test`)
+# EA test run (first run, 2026-11-12; now `python -m easplatting.experiment`)
 
 A first end-to-end run of the evolutionary search on bonsai, built on Areeb's draft. It checks that the loop
 works; it is not a result.
 
 ```bash
-python -m easplatting.run_ea      # needs the bonsai data (scripts/get_data.sh) and a GPU; takes ~4 s
+# originally `python -m easplatting.run_ea` (5 generations, 16 parents, 32 children, 3 genes), since replaced by
+# python -m easplatting.experiment --genes 3 --methods ga --seeds 1   (GPU; see RUNNING.md section 8)
 ```
 
 ## What it does

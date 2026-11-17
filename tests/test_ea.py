@@ -10,7 +10,7 @@ from easplatting.fitness import Individual, make_fitness_function
 from easplatting.genome import decode
 from easplatting.gs_loader import activate
 from easplatting.render import render_views
-from easplatting.thresholds import gene_stats, slider_bounds
+from easplatting.thresholds import gene_stats, keep_mask, slider_bounds
 
 BOUNDS = [(-3.0, -0.3), (-1.5, 0.5), (0.0, 4.0)]
 
@@ -68,3 +68,23 @@ def test_cameras_scaled(colmap_scene):
     half = cams.scaled(0.5)
     assert half.size == (cams.size[0] // 2, cams.size[1] // 2)
     assert torch.allclose(half.Ks[:, 0, 0], cams.Ks[:, 0, 0] / 2) and torch.equal(half.viewmats, cams.viewmats)
+
+
+def test_importance_gene(raw_scene):
+    scene = activate(raw_scene)
+    n = scene["means"].shape[0]
+    stats = gene_stats(scene, importance=torch.arange(n, dtype=torch.float32).flip(0))   # Gaussian 0 is the most important
+    assert stats["importance"][0] > stats["importance"][-1] and stats["importance"].min() == 0
+    assert keep_mask(stats, 0.0, np.inf, np.inf).all()                                   # off by default
+    mask = keep_mask(stats, 0.0, np.inf, np.inf, 0.5)
+    assert abs(mask.sum().item() - n / 2) <= 1 and mask[0] and not mask[-1]              # removes the least important half
+    assert decode([0.5, 0.5, 0.5, 0.04], BOUNDS)[3] == 0.0 and decode([0.5, 0.5, 0.5, 0.6], BOUNDS)[3] == 0.6
+    assert len(decode([0.5, 0.5, 0.5], BOUNDS)) == 3
+
+
+def test_experiment_sweep_and_log():
+    from easplatting.experiment import Log, OFF, best_row, run_sweep
+    fit = Log(lambda g: (-abs(g[3] - 0.4), 1 - g[3], 45.0), "sweep_importance", 0)
+    run_sweep(fit, 4, 3, points=11)
+    assert len(fit.rows) == 11 and all(r["genome"][:3] == OFF[:3] for r in fit.rows)      # other genes stay off
+    assert best_row(fit.rows)["genome"][3] == 0.4 and fit.rows[0]["eval"] == 0

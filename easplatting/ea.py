@@ -43,7 +43,7 @@ def evolutionary_algorithm(
         while len(new_children) < num_children:
             # inheritance
             parent1 = np.random.choice(population)
-            child1 = copy.deepcopy(parent1)
+            child1 = copy.copy(parent1)  # shallow: mutation assigns a new genome array
 
             # mutation
             child1.genome = np.clip(

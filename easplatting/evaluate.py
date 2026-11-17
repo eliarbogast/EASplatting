@@ -3,7 +3,7 @@ evaluate.py — end-to-end local check: scene + cameras -> renders -> metrics ->
 
 This is the "does the whole pipeline work" script. No EA/fitness yet; it
 verifies every piece the EA will rely on and writes a report you can diff
-between machines (local GPU vs VACC).
+between machines (e.g. two different GPUs).
 
 Examples
   # Main benchmark: NerfBaselines 3DGS checkpoint + Mip-NeRF 360 (official images_2 for indoor)

@@ -4,17 +4,16 @@ Status, decisions, next steps, the compute budget, how to measure fitness, and t
 Eli + Areeb as we write the EA. "Lean" = a suggestion, not a decision. How to run things: [`RUNNING.md`](RUNNING.md).
 Background and fitness-design options: [`BACKGROUND.md`](BACKGROUND.md) sections 5-8.
 
-## Status and next steps (2026-11-13; findings: see "Findings so far and planned directions")
+## Status and next steps (2026-11-17; findings: see "Findings so far and planned directions")
 
 **Done and verified on a real GPU** (RTX 5070 Ti; results in [`RUNNING.md`](RUNNING.md) section 7): scene loading,
 cameras, rendering, metrics (match NerfBaselines and gsplat's own eval), the evaluation report, the interactive
-viewer, the threshold -> mask logic (`easplatting/thresholds.py`), data/setup/measurement scripts. 37 CPU tests.
-**First EA test works** (branch `ea-test`, built on Areeb's draft): genome decoding, feasibility-first fitness and a minimal
-mutation + tournament loop; `python -m easplatting.run_ea` reaches 71% of bonsai's Gaussians kept at 40.3 dB in 5 generations (4 s).
-**Compared on four scenes (2026-11-13, scratch scripts):** GA vs random vs grid vs a 1D opacity sweep on bonsai,
-counter, garden, bicycle; the 1D sweep matches the GA with these 3 genes. **Not started:** config-driven runs and
-logging, the full experiment loop, the VACC job scripts, and the three planned directions (importance-score gene,
-Pareto front, per-scene quality floor).
+viewer, the threshold -> mask logic (`easplatting/thresholds.py`), data/setup/measurement scripts.
+**EA pipeline on `main`:** genome decoding (3 thresholds + an optional importance-percentile gene), feasibility-first
+fitness, a mutation + tournament GA, and `python -m easplatting.experiment` (GA vs random vs 1-D sweeps, one JSONL row per
+evaluation, held-out test PSNR per best genome). 45 CPU tests. **Importance gene first result (bonsai, below):** the
+importance gene alone reaches 43% kept at 40 dB where the best opacity threshold reaches 71%; the GA does not beat the
+importance-only sweep. **Not started:** the other three scenes with 4 genes, Pareto front, per-scene quality floor.
 
 **Decisions already made**
 - **Renderer: gsplat 1.5.3** (latest release; 1.6.0 on main is unreleased with a different trainer API). Batched
@@ -36,13 +35,11 @@ Pareto front, per-scene quality floor).
    short-circuit empty masks; cache by rounded genome. See "How to measure fitness".
 4. Random search with the same evaluation budget first (validates the loop), then the GA (tournament + Gaussian
    mutation + elitism; BLX/SBX crossover optional).
-5. VACC: one process per (scene x method), seeds sequentially, SLURM array over those, persistent
-   `TORCH_EXTENSIONS_DIR` ([`RUNNING.md`](RUNNING.md) section 8).
 
 ## Findings so far and planned directions (2026-11-13)
 
 **Four-scene comparison** (bonsai, counter, garden, bicycle; NerfBaselines checkpoints; each validated against
-NerfBaselines' published metrics). Fitness as in `run_ea.py`: minimise kept fraction s.t. PSNR >= 40 dB vs the
+NerfBaselines' published metrics). Fitness as in `experiment.py`: minimise kept fraction s.t. PSNR >= 40 dB vs the
 unpruned render on 8 half-res train views. GA = 32 parents + 64 children x 10 generations (672 evals), 3 seeds;
 random search = same 672 evals; grids are deterministic; "1D opacity" = 64 evals with max-scale and anisotropy off.
 
@@ -101,6 +98,31 @@ EA only has room to matter where a sweep cannot cover the search space.
 grid, percentile pruning at equal Gaussian count, and CMA-ES. If the GA cannot beat the 1D sweep in a richer
 space, the claim is about the search space, not the algorithm.
 
+## Importance-gene first result (2026-11-17, bonsai)
+
+`python -m easplatting.experiment --scene bonsai --genes 4 --seeds 3` (tau 40 dB vs unpruned on 8 half-res train views;
+GA 32 parents + 64 children x 10 generations = 672 evals; sweeps 64 evals per gene with the others off). The new gene
+keeps Gaussians whose importance percentile is at least p; importance = per-Gaussian blend weight over all train views
+(`render.gaussian_contributions`, cached in `results/cache/`).
+
+| Method | % kept (mean over seeds, best) | Held-out test PSNR vs unpruned |
+|---|---|---|
+| GA, 4 genes | 45.4 (43.5) | 39.3 / 40.7 / 39.6 dB |
+| Random search, 672 evals | 60.2 (46.8) | 41.4 / 48.3 / 48.1 dB |
+| 1-D sweep, importance only | **42.9** | 39.3 dB |
+| 1-D sweep, opacity only | 70.6 | 41.4 dB |
+| 1-D sweeps, scale / anisotropy only | 99.9 / 100 | |
+
+- **The gene is the big win:** 43% kept vs 71% for the best opacity threshold at the same constraint.
+- **The risk named in direction 1 happened:** importance dominates, and the GA (45.4% mean) does not beat the 1-D
+  importance sweep (42.9%, 64 evals). Success needed both, so it is half met. An EA only earns its keep if opacity,
+  importance and scale interact; a quick check is whether the evolved best genomes use more than one gene (`log.jsonl`).
+- **Held-out gap:** importance solutions land 0.3-0.7 dB below tau on the test views, because importance is computed on
+  all train views and the fitness views are a subset of them. Keep a margin above tau or compute importance on the fitness views only.
+- Fixed in passing: `ea.py` deep-copied each parent, which also copied the fitness function (and any logger); it now copies shallowly.
+- One scene, 3 seeds. Next: counter, garden, bicycle, then decide between a richer search space (importance x opacity x
+  scale interactions, SH cap) and the Pareto-front direction.
+
 ## Compute budget
 
 **Datasets by purpose.** Dev/debug of the EA loop: NeRF-Synthetic (lego) or a 7k-step gsplat truck
@@ -109,10 +131,7 @@ space, the claim is about the search space, not the algorithm.
 LightGaussian). Optional secondary table: the 8 NeRF-Synthetic scenes (cheap, but no unbounded
 background, which is where scene-specific thresholds should matter most).
 
-**Cluster:** see [`RUNNING.md`](RUNNING.md) section 8 (VACC GPUs, env, preemption, one GPU SKU for timings).
-
-**Measured** (RTX 5070 Ti, `cost` rows re-run 2026-11-13, within ~3% of the 2026-11-06 run; reproduce with `python scripts/measure.py cost`, and re-run it on each
-VACC GPU type). One evaluation = mask -> prune -> render 8 train views at half res -> PSNR vs cached baselines.
+**Measured** (RTX 5070 Ti, `cost` rows re-run 2026-11-13, within ~3% of the 2026-11-06 run; reproduce with `python scripts/measure.py cost`, and re-run it on any new GPU type). One evaluation = mask -> prune -> render 8 train views at half res -> PSNR vs cached baselines.
 
 | | Result |
 |---|---|
@@ -287,7 +306,7 @@ if all conditions pass (Q5); accept the 0.008 LPIPS gap (Q16).
 
 **Housekeeping**
 16. Our LPIPS-VGG is 0.008 above NerfBaselines' (within tolerance). Worth chasing, or accept?
-17. Who owns what (genome/fitness vs. logging/plots vs. VACC scripts)?
+17. Who owns what (genome/fitness vs. logging/plots vs. run scripts)?
 
 ## Feedback and visualization ideas
 
@@ -297,7 +316,7 @@ generation, genome, kept count, ΔPSNR, wall time, cache hit). Plots are then po
 **During a run**
 - **Terminal progress line** per generation: gen, best fitness, kept %, ΔPSNR, evals/s, ETA, GPU mem.
 - **TensorBoard** (already installed with gsplat's trainer deps): scalars live, plus a render strip
-  (GT | unpruned | best pruned | error) every K generations. Works over a port-forward on the VACC.
+  (GT | unpruned | best pruned | error) every K generations.
 - **`progress.png`** rewritten every N generations: best/median fitness vs evaluations, kept
   fraction, and the population in the (size, ΔPSNR) plane coloured by generation.
 - **Gene trajectories**: per-gene population histogram or violin over generations; shows convergence

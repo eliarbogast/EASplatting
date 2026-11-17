@@ -3,7 +3,7 @@
 Long reference doc (skim the section you need; start at `README.md`; plan and status are in `EA_PLAN.md`). Notes for the EA-based
 3DGS pruning project (Eli & Areeb). Covers file
 formats and conventions, metrics, fitness design, genome/operators, baselines,
-experiment protocol, VACC usage, and known pitfalls. Pairs with `gs_loader.py`.
+experiment protocol, and known pitfalls. Pairs with `gs_loader.py`.
 
 ---
 
@@ -292,37 +292,14 @@ but you need the baseline to know.
   genome per generation. Plotting later is then trivial.
 - **Config files:** every run driven by a YAML/JSON config (scene, method,
   λ/τ, pop, gens, seed). Same config → same experiment, whether on a laptop or
-  the VACC (addresses the "testing the same thing" goal in Week 4).
+  another machine (addresses the "testing the same thing" goal in Week 4).
 
 ---
 
-## 9. Compute & the VACC
+## 9. Compute
 
-### 9.1 Don't use a SLURM task per individual
-One fitness eval with the scene already on the GPU is well under a second.
-A separate job per individual spends nearly all its time on queueing, Python/CUDA
-startup, and loading a ~500 MB scene.
-
-**Instead:**
-- **One process = one full EA run.** Load scene once, keep it on GPU, evaluate
-  the whole population in-process.
-- **SLURM array over (scene × method × seed × setting)**, e.g. `--array=0-119`,
-  index → config.
-- **Cache baseline renders** per scene once (tensors in `.pt`/`.npy`); never
-  re-render the unpruned scene during evolution.
-
-### 9.2 Practicalities
-- gsplat JIT-compiles CUDA kernels on first use. Either install a prebuilt
-  wheel matching the cluster's CUDA/PyTorch, or set a persistent
-  `TORCH_EXTENSIONS_DIR` and compile once before launching arrays (otherwise 100
-  array tasks all compile at once, or collide on the same cache).
-- Check which GPU types the partition gives you; pin `--gres=gpu:<type>:1` if
-  you report FPS, so timings are comparable.
-- Memory: a 6 M-Gaussian scene is ~1.5 GB of float32 on GPU; rendering 1080p
-  views adds more. Small GPUs may need reduced resolution for fitness.
-- Write outputs per task to separate files (`results/{run_id}.jsonl`) — no
-  shared-file appends from many tasks.
-- Do short local smoke tests (2 gens × 4 individuals) before every big array.
+Measured costs and the evaluation budget are in `EA_PLAN.md` ("Compute budget"). One process = one full EA run (load the
+scene once, cache baselines); write each run's results to its own file. Cluster/SLURM notes: `archive/vacc.md`.
 
 ---
 
@@ -414,10 +391,9 @@ easplatting/fitness.py    # mask -> renders -> metrics -> fitness
 easplatting/search.py     # random search, GA (tournament + mutation + elitism), optional CMA-ES
 easplatting/run.py        # one EA run from a config; writes results/{run_id}.jsonl
 configs/                  # YAML per experiment
-slurm/array.sbatch        # array over configs x seeds
 ```
 
 Build order: `gs_loader` → `cameras` + `render` (verify unpruned vs. GT) →
 `metrics` (verify against a known value, e.g. 3DGS paper numbers on one scene) →
 `genome` + `fitness` → random search (simplest optimizer, validates the loop) →
-GA → VACC arrays.
+GA → multi-scene runs.

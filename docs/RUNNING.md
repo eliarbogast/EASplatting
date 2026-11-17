@@ -1,6 +1,6 @@
 # Running it
 
-How to set up, run, check and measure everything, locally and on the UVM VACC. Commands run from the
+How to set up, run, check and measure everything, on this machine. Commands run from the
 repo root with the env active (`conda activate gsprune`). For the plan and design questions see
 [`EA_PLAN.md`](EA_PLAN.md).
 
@@ -14,7 +14,7 @@ python scripts/check_env.py --smoke    # after setup: also compile gsplat and re
 | | Status |
 |---|---|
 | **Tested** | Pop!_OS 24.04 (Ubuntu-based, glibc 2.39), x86_64, RTX 5070 Ti (sm_120), driver CUDA 13.2, torch 2.8/cu128 |
-| **Expected to work, not yet run** | other x86_64 glibc Linux (RHEL 9 on the VACC); GPUs sm_70 to sm_120 with driver CUDA >= 12.8. Checked: torch's wheel has kernels for all of them, and one gsplat build compiled for sm_70-sm_120 loads and renders on sm_120 (the other architectures are in the binary but were never executed) |
+| **Expected to work, not yet run** | other x86_64 glibc Linux; GPUs sm_70 to sm_120 with driver CUDA >= 12.8. Checked: torch's wheel has kernels for all of them, and one gsplat build compiled for sm_70-sm_120 loads and renders on sm_120 (the other architectures are in the binary but were never executed) |
 | **Fallback stack, not yet run** | torch 2.4.1/cu124 (picked automatically) for drivers CUDA 12.4-12.7, and for pre-Volta GPUs (sm < 7.0, e.g. GTX 10xx) |
 | **Not supported** | Windows, macOS, aarch64 (untested), drivers older than CUDA 12.4 (override `CU`/`TORCH`/`TORCHVISION` at your own risk) |
 
@@ -120,52 +120,22 @@ Raw reports and the fixes made during bring-up: [`archive/bring_up/`](archive/br
 worth remembering: LPIPS-VGG follows NerfBaselines (inputs rescaled to [-1,1]); the Inria repo feeds raw [0,1]
 and reads ~0.05 lower (`--lpips-net vgg-raw`).
 
-## 8. Running on the UVM VACC
+## 8. Running a GPU job from Claude Code (pop-os)
 
-Written before we have access, from the VACC docs ([cluster specs](https://www.uvm.edu/vacc/cluster-specs),
-[partitions](https://www.uvm.edu/vacc/docs/beyond_basics/slurm_partitions/),
-[submitting jobs](https://www.uvm.edu/vacc/docs/start_guide/running_jobs/)). Verify against `sinfo` /
-`show_node_constraints` once we're on; the "Confirm with VACC" list below is what the docs don't say.
+Claude's sandbox hides `/dev/nvidia*`, so plain commands see no GPU ("No CUDA GPUs are available"). Use the root-owned
+helper `/usr/local/bin/gpu-run` (listed in `sandbox.excludedCommands`; network off, home read-only, the repo writable).
+Run it from the repo root as ONE plain command: a leading `cd ... &&`, a `source`, or a trailing `| tail` makes it
+compound, it then runs inside the sandbox, and fails with "bwrap: No permissions to create new namespace".
 
-| GPU | Arch (`TORCH_CUDA_ARCH_LIST`) | Memory | Notes |
-|---|---|---|---|
-| H200 (NVL, SXM) | 9.0 | 141 GB | most GPUs; 4-8 per node |
-| H100 | 9.0 | 80 GB | 2 nodes |
-| A100 | 8.0 | 40 GB | 2 nodes; this is what `gpu-debug` gives |
-| RTX Pro 6000 (Blackwell) | 12.0 | 96 GB | same architecture as Eli's desktop |
+```bash
+/usr/local/bin/gpu-run -- /usr/bin/env CUDA_HOME=/home/eli/miniforge3/envs/gsprune PATH=/home/eli/miniforge3/envs/gsprune/bin:/usr/bin:/bin CPATH=/home/eli/miniforge3/envs/gsprune/targets/x86_64-linux/include LIBRARY_PATH=/home/eli/miniforge3/envs/gsprune/targets/x86_64-linux/lib TORCH_CUDA_ARCH_LIST=12.0 /home/eli/miniforge3/envs/gsprune/bin/python -m easplatting.experiment --scene bonsai
+```
 
-RHEL 9.6, Slurm, Lmod (CUDA 11/12/13 modules), shared GPFS storage. Partitions: `nvgpu` (GPU jobs, 48 h),
-`gpu-debug` (3 h, 1 A100, max 2 submitted / 1 running per user), `gpu-preempt` (H200 nodes, **jobs can be
-cancelled**); `general` has no GPUs. Pick GPUs with `--constraint`, e.g. `GPU_SKU:H200`, `GPU_MEM:80GB`, `gpu_any`.
-The torch 2.8 + cu128 wheels carry sm_80, sm_90 and sm_120 kernels, so **one env and one gsplat build serve every node type**.
-
-Checklist:
-1. **Look before you build:** `python scripts/check_env.py` on the login node and again on a GPU node.
-2. **Build the env on a login node** (no GPU needed), on project/GPFS storage, not `$HOME` (the conda CUDA toolkit
-   alone is several GB): `NO_GPU_OK=1 TORCH_CUDA_ARCH_LIST="8.0;9.0;12.0" bash scripts/setup_local.sh`
-3. **Pre-warm gsplat's JIT cache once** on a GPU node (a `gpu-debug` job is enough), with the same arch list and a
-   shared cache in every job; otherwise a different list triggers a rebuild and, in an array, tasks race on the build lock:
-   `export TORCH_CUDA_ARCH_LIST="8.0;9.0;12.0" TORCH_EXTENSIONS_DIR=/path/on/gpfs/torch_ext; python scripts/check_env.py --smoke-only`
-4. **Make compute nodes self-sufficient** (they may be offline): fetch data on a login node
-   (`bash scripts/get_data.sh mipnerf360 bonsai counter ...`, then `nb-checkpoints`) and the LPIPS weights
-   (`TORCH_HOME=/path/on/gpfs/torch_home python scripts/check_env.py --prefetch-weights`), then export the same `TORCH_HOME` in jobs.
-5. **Job preamble** (same in every job): activate the env, export `TORCH_EXTENSIONS_DIR`, `TORCH_CUDA_ARCH_LIST`,
-   `TORCH_HOME`; request one GPU with a `--constraint`. Give each array task its own log/JSONL file (concurrent
-   appends corrupt a shared file). Check `nvidia-smi` shows driver >= 570 (CUDA 12.8).
-6. **One GPU SKU for every timed comparison**, e.g. `--constraint=GPU_SKU:H200`; re-run `measure.py cost` there and
-   compare methods by evaluation count, not wall time. `gpu-debug` (A100) is for dry runs, not timings.
-7. **Runs must be resumable** (skip finished seeds, write per-seed results as you go): required for `gpu-preempt`,
-   good practice for `nvgpu`. Our runs are minutes long, so seed-level resume is enough.
-8. **Parallelism = number of GPUs.** On the 5070 Ti, 1 / 2 / 4 processes sharing a GPU gave 75 / 70 / 76 evals/s in
-   total: one process saturates it. Re-run `measure.py cost` on an H200 before assuming a bigger GPU behaves
-   differently; until then spread seeds across GPUs (array tasks), not processes on one GPU.
-9. **Logs:** progress meters should print plain periodic lines when not attached to a TTY; plots use matplotlib's `Agg`.
-10. **Viewer on a node:** binds to 127.0.0.1 only; from a laptop `ssh -L 8080:<gpu-node>:8080 <vacc-login>`, then open `http://localhost:8080`.
-
-Confirm with VACC (not stated in the docs we found): do compute nodes have internet (step 4 assumes not); exact GPU
-request syntax (the docs' example uses only `--constraint`; is `--gres=gpu:1` also needed?); scratch/project paths,
-quotas and purge policy (~2 GB per scene, ~1.4 GB per checkpoint); which conda / Python / compiler modules exist (we
-assume none and install Miniforge ourselves); per-user limits on jobs and array tasks for `nvgpu`.
+The `env` variables replace `conda activate` (they are what `~/miniforge3/envs/gsprune/conda-meta/state` persists).
+Without `CUDA_HOME`, gsplat prints "No CUDA toolkit found" and fails with `'NoneType' object has no attribute
+'CameraModelType'`. In your own terminal just `conda activate gsprune`. CPU tests need no GPU:
+`~/miniforge3/envs/gsprune/bin/python -m pytest -q tests`. (Also saved in Claude's memory, `gpu-runs-easplatting`.)
+Cluster (VACC) notes are archived in [`archive/vacc.md`](archive/vacc.md).
 
 ## Troubleshooting
 
@@ -176,6 +146,6 @@ assume none and install Miniforge ourselves); per-user limits on jobs and array 
 | PSNR a bit low, images look fine | background mismatch (NeRF-Synthetic: white), or `--rasterize-mode` vs how it was trained |
 | GT size warning | `--images` doesn't match the resolution the scene was evaluated at |
 | first render takes minutes | gsplat JIT compile (once); keep `TORCH_EXTENSIONS_DIR` set |
-| "No CUDA GPUs are available" in a sandboxed shell | the sandbox hides `/dev/nvidia*`; run GPU commands outside it |
+| "No CUDA GPUs are available" in a sandboxed shell | the sandbox hides `/dev/nvidia*`; use `gpu-run` (section 8) |
 | LPIPS off vs a paper | different LPIPS convention/net; see section 7 (`--lpips-net vgg-raw` for Inria-style tables) |
 | truck test PSNR >> 25 dB | Inria pretrained model saw the test views; use NB checkpoints for honest numbers |
