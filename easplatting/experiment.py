@@ -78,12 +78,10 @@ def run_sweep(fit, n, gene, points):
         fit(genome)
 
 
-def test_psnr(scene, stats, bounds, genome, cams, test_idx):
-    """Held-out check: best genome vs the unpruned render on the test views, full resolution."""
-    test = cams.subset(test_idx)
+def view_psnrs(scene, stats, bounds, genome, views, baselines):
+    """Per-view PSNR of a genome's pruned scene vs the unpruned baseline renders of `views`."""
     mask = keep_mask(stats, *decode(genome, bounds))
-    return psnr_fast(render_views(prune(scene, mask), test, batch_size=4),
-                     render_views(scene, test, batch_size=4), max_db=60).mean().item()
+    return psnr_fast(render_views(prune(scene, mask), views, batch_size=4), baselines, max_db=60)
 
 
 def best_row(rows):
@@ -96,7 +94,9 @@ def main():
     ap.add_argument("--genes", type=int, default=4, choices=[3, 4], help="3 thresholds, or + the importance gene")
     ap.add_argument("--methods", default="ga,random,sweep")
     ap.add_argument("--seeds", type=int, default=3)
-    ap.add_argument("--tau", type=float, default=40.0, help="PSNR (dB) vs the unpruned renders")
+    ap.add_argument("--tau", type=float, default=40.0, help="mean PSNR (dB) vs the unpruned renders")
+    ap.add_argument("--views", type=int, default=8, help="number of fixed train views the fitness uses (half resolution)")
+    ap.add_argument("--worst-tau", type=float, default=None, help="also require this PSNR on the worst fitness view")
     ap.add_argument("--parents", type=int, default=32)
     ap.add_argument("--children", type=int, default=64)
     ap.add_argument("--generations", type=int, default=10)
@@ -105,7 +105,8 @@ def main():
     ap.add_argument("--out", default=None, help="default results/<scene>_<genes>g")
     args = ap.parse_args()
     n = args.genes
-    out = Path(args.out or f"results/{args.scene}_{n}g")
+    tag = (f"_v{args.views}" if args.views != 8 else "") + (f"_w{args.worst_tau:g}" if args.worst_tau else "")
+    out = Path(args.out or f"results/{args.scene}_{n}g{tag}")
     out.mkdir(parents=True, exist_ok=True)
 
     scene_path, cameras_path, images = scene_paths(args.scene)
@@ -116,8 +117,11 @@ def main():
     stats = gene_stats(scene, importance.cuda() if importance is not None else None)
     b = slider_bounds(stats)
     bounds = [b["min_opacity"], b["max_scale"], b["max_anisotropy"]]
-    views = cams.subset(select_indices(len(cams), "train", k=8)).scaled(0.5)   # fixed fitness views, half resolution
-    fitness_function = make_fitness_function(scene, stats, bounds, views, render_views(scene, views), args.tau)
+    views = cams.subset(select_indices(len(cams), "train", k=args.views)).scaled(0.5)   # fixed fitness views, half resolution
+    fitness_function = make_fitness_function(scene, stats, bounds, views, render_views(scene, views), args.tau, args.worst_tau)
+    # held-out diagnostics for each run's best genome: all train views (half res) and the test views (full res)
+    all_train, test = cams.subset(train_idx).scaled(0.5), cams.subset(test_idx)
+    all_train_base, test_base = render_views(scene, all_train, batch_size=4), render_views(scene, test, batch_size=4)
 
     runs = []                                         # (method, seed)
     for m in args.methods.split(","):
@@ -142,12 +146,14 @@ def main():
         s = dict(method=method, seed=seed, evals=len(fit.rows), seconds=round(time.perf_counter() - t0, 1), feasible=feasible,
                  genome=best["genome"], kept=best["kept"], fit_psnr=best["psnr"])
         if feasible:
-            s["test_psnr"] = test_psnr(scene, stats, bounds, best["genome"], cams, test_idx)
+            tr, te = (view_psnrs(scene, stats, bounds, best["genome"], v, b) for v, b in ((all_train, all_train_base), (test, test_base)))
+            s.update(train_psnr=tr.mean().item(), train_worst=tr.min().item(), test_psnr=te.mean().item(), test_worst=te.min().item())
             s["thresholds"] = [float(f"{t:.4g}") for t in decode(best["genome"], bounds)]
         summary.append(s)
         rows += fit.rows
         print(f"{method:>18} seed {seed}: {s['evals']:4d} evals  kept {100 * s['kept']:5.1f}%  fit PSNR {s['fit_psnr']:5.2f}"
-              + (f"  test PSNR {s['test_psnr']:5.2f}" if feasible else "  INFEASIBLE"), flush=True)
+              + (f"  all-train {s['train_psnr']:5.2f} (worst {s['train_worst']:5.2f})  test {s['test_psnr']:5.2f} (worst {s['test_worst']:5.2f})"
+                 if feasible else "  INFEASIBLE"), flush=True)
 
     (out / "log.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
     (out / "summary.json").write_text(json.dumps(dict(args=vars(args), runs=summary), indent=1))

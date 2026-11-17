@@ -88,3 +88,16 @@ def test_experiment_sweep_and_log():
     run_sweep(fit, 4, 3, points=11)
     assert len(fit.rows) == 11 and all(r["genome"][:3] == OFF[:3] for r in fit.rows)      # other genes stay off
     assert best_row(fit.rows)["genome"][3] == 0.4 and fit.rows[0]["eval"] == 0
+
+
+def test_fitness_worst_view_floor(raw_scene):
+    scene = activate(raw_scene)
+    stats = gene_stats(scene)
+    b = slider_bounds(stats)
+    bounds = [b["min_opacity"], b["max_scale"], b["max_anisotropy"]]
+    cams = Cameras(names=["a", "b"], viewmats=torch.stack([torch.eye(4), torch.eye(4)]), Ks=torch.tensor([[60.0, 0, W / 2], [0, 60.0, H / 2], [0, 0, 1]]).expand(2, 3, 3).clone(), widths=[W, W], heights=[H, H])
+    cams.viewmats[:, 2, 3] = 3.0
+    base = render_views(scene, cams)
+    all_off = np.array([0.0, 1.0, 1.0])
+    assert make_fitness_function(scene, stats, bounds, cams, base, 40.0, worst_tau=50.0)(all_off)[0] == 0.0   # PSNR 60 on both views
+    assert make_fitness_function(scene, stats, bounds, cams, base, 40.0, worst_tau=70.0)(all_off)[0] == -1000.0 - 10.0

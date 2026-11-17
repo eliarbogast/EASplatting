@@ -9,11 +9,12 @@ Background and fitness-design options: [`BACKGROUND.md`](BACKGROUND.md) sections
 **Done and verified on a real GPU** (RTX 5070 Ti; results in [`RUNNING.md`](RUNNING.md) section 7): scene loading,
 cameras, rendering, metrics (match NerfBaselines and gsplat's own eval), the evaluation report, the interactive
 viewer, the threshold -> mask logic (`easplatting/thresholds.py`), data/setup/measurement scripts.
-**EA pipeline on `main`:** genome decoding (3 thresholds + an optional importance-percentile gene), feasibility-first
-fitness, a mutation + tournament GA, and `python -m easplatting.experiment` (GA vs random vs 1-D sweeps, one JSONL row per
-evaluation, held-out test PSNR per best genome). 45 CPU tests. **Importance gene first result (bonsai, below):** the
-importance gene alone reaches 43% kept at 40 dB where the best opacity threshold reaches 71%; the GA does not beat the
-importance-only sweep. **Not started:** the other three scenes with 4 genes, Pareto front, per-scene quality floor.
+**EA pipeline on `main`:** genome decoding (3 thresholds + optional importance-percentile gene), feasibility-first
+fitness (mean-PSNR floor, optional worst-view floor, `--views K`), a mutation + tournament GA, and
+`python -m easplatting.experiment` (GA vs random vs 1-D sweeps; JSONL row per evaluation; all-train / test / worst-view
+PSNR per best genome). 46 CPU tests. **Results:** the importance gene cuts kept % from 65-74 (opacity only) to 43-51 at
+40 dB, but those solutions hide badly damaged views; a robust fitness gives an honest 51-66%. See the two result
+sections below.
 
 **Decisions already made**
 - **Renderer: gsplat 1.5.3** (latest release; 1.6.0 on main is unreleased with a different trainer API). Batched
@@ -27,14 +28,26 @@ importance-only sweep. **Not started:** the other three scenes with 4 genes, Par
 - **Fitness reference:** the unpruned renders (cached by `evaluate --cache-baselines`), not the photos; final tables
   report both. Evolve on train views, report on test views.
 
-**Next steps**
-1. Settle the four decisions under "Decisions to make next" below (fitness form, genes, scenes, fine-tuning).
-2. `easplatting/genome.py`: gene bounds in log space with an explicit "off" zone at the range ends; decode to a mask
-   with `thresholds.keep_mask`.
-3. `easplatting/fitness.py`: mask -> render the 8 fitness views -> PSNR vs cached baselines + size; feasibility-first;
-   short-circuit empty masks; cache by rounded genome. See "How to measure fitness".
-4. Random search with the same evaluation budget first (validates the loop), then the GA (tournament + Gaussian
-   mutation + elitism; BLX/SBX crossover optional).
+**Next steps** (in order; the other three "planned directions" below still stand)
+1. **Pareto front** (NSGA-II over opacity / scale / importance; hypervolume vs the sweeps' fronts). A single constrained
+   point is what a sweep does well; the front is where an EA can still win.
+2. **Finer / adaptive 1-D sweeps as the baseline**: 64 points overshoot a sharp feasibility edge (fit PSNR 46-50 dB at
+   the best sweep point), which flatters the GA on counter and garden. Re-check before claiming a GA win.
+3. **Transfer the floor to held-out views**: garden's worst test view is still ~25 dB with a 32-view floor. Try views
+   chosen for coverage (pose clustering) instead of evenly spaced, and an allowed-real-loss constraint per scene.
+4. Baselines: LightGaussian-style percentile pruning at equal count, CMA-ES; optional fine-tuning of finals only.
+
+**Other ideas (not started; one line each)**
+- *Evolve the importance score:* genome = weights over per-Gaussian features (opacity, volume, view count, blend weight,
+  distance to camera hull); a high-dimensional space a sweep cannot cover, which is where an EA should matter.
+- *Spatial / per-region genes:* separate thresholds per depth shell or octree cell (background vs foreground).
+- *Per-view-aware importance:* score each Gaussian by its worst-view contribution (max over views, not the sum), which
+  targets the tail damage the mean hides.
+- *SH-degree cap gene:* drop higher SH bands (size in bytes, not count); needs the byte-size objective (Q2).
+- *Transfer:* does a genome (esp. the ~0.5 importance percentile) evolved on one scene work on another (Q13)?
+- *Multi-fidelity:* score all genomes on 4 views, re-score the top quarter on 32; keeps the robust fitness cheap.
+- *Quality-diversity (MAP-Elites)* over (kept %, worst-view PSNR) instead of one constrained optimum.
+- *Importance on fitness views only*, or leave-views-out importance, to cut the train/test gap at its source.
 
 ## Findings so far and planned directions (2026-11-13)
 
@@ -98,30 +111,60 @@ EA only has room to matter where a sweep cannot cover the search space.
 grid, percentile pruning at equal Gaussian count, and CMA-ES. If the GA cannot beat the 1D sweep in a richer
 space, the claim is about the search space, not the algorithm.
 
-## Importance-gene first result (2026-11-17, bonsai)
+## Importance gene, four scenes, mean-only fitness (2026-11-17)
 
-`python -m easplatting.experiment --scene bonsai --genes 4 --seeds 3` (tau 40 dB vs unpruned on 8 half-res train views;
+`python -m easplatting.experiment --scene <s> --genes 4 --seeds 3` (tau 40 dB vs unpruned on 8 half-res train views;
 GA 32 parents + 64 children x 10 generations = 672 evals; sweeps 64 evals per gene with the others off). The new gene
 keeps Gaussians whose importance percentile is at least p; importance = per-Gaussian blend weight over all train views
 (`render.gaussian_contributions`, cached in `results/cache/`).
 
-| Method | % kept (mean over seeds, best) | Held-out test PSNR vs unpruned |
-|---|---|---|
-| GA, 4 genes | 45.4 (43.5) | 39.3 / 40.7 / 39.6 dB |
-| Random search, 672 evals | 60.2 (46.8) | 41.4 / 48.3 / 48.1 dB |
-| 1-D sweep, importance only | **42.9** | 39.3 dB |
-| 1-D sweep, opacity only | 70.6 | 41.4 dB |
-| 1-D sweeps, scale / anisotropy only | 99.9 / 100 | |
+% of Gaussians kept (lower is better); GA = mean over 3 seeds (best); random = mean over 3 seeds:
 
-- **The gene is the big win:** 43% kept vs 71% for the best opacity threshold at the same constraint.
-- **The risk named in direction 1 happened:** importance dominates, and the GA (45.4% mean) does not beat the 1-D
-  importance sweep (42.9%, 64 evals). Success needed both, so it is half met. An EA only earns its keep if opacity,
-  importance and scale interact; a quick check is whether the evolved best genomes use more than one gene (`log.jsonl`).
-- **Held-out gap:** importance solutions land 0.3-0.7 dB below tau on the test views, because importance is computed on
-  all train views and the fitness views are a subset of them. Keep a margin above tau or compute importance on the fitness views only.
+| Scene | GA, 4 genes | Random | **1-D importance sweep** | 1-D opacity sweep | GA, 3 genes (11-13) |
+|---|---|---|---|---|---|
+| bonsai | 45.4 (43.5) | 60.2 | **42.9** | 70.6 | 71.5 |
+| counter | 45.7 (42.6) | 52.6 | **42.9** | 65.3 | 65.7 |
+| garden | 55.2 (49.1) | 63.5 | **49.2** | 65.6 | 66.4 |
+| bicycle | 52.3 (50.2) | 75.4 | **50.8** | 74.1 | 74.2 |
+
+Held-out test PSNR vs unpruned (fitness constraint was 40 dB): GA bests 39.3-41.2 on bonsai, counter, bicycle; on garden
+**39.6 / 33.8 / 34.2**. The importance-only sweep on garden: fit 40.2, **test 33.7**.
+
+- **The gene is the big win and it is robust:** 43-51% kept vs 65-74% for the best opacity threshold, on all four
+  scenes, and the best importance cutoff is nearly the same everywhere (percentile 0.45-0.57).
+- **The GA never beats the importance-only sweep** (best seed per scene is 0.1-0.7 points under it; the means are 1.6-6
+  over). The evolved genomes do combine genes (opacity ~0.01-0.06 + max scale + importance ~0.5, anisotropy off), but
+  that buys at most ~1 point. The 1-D sweep covers the space.
+- **Importance solutions overfit the fitness views** more than opacity ones: gap (fit - test PSNR) is +0.4 to +1.3 dB
+  everywhere and +6.3 dB on garden, vs about zero or negative for opacity-only. Not yet diagnosed (see next steps).
 - Fixed in passing: `ea.py` deep-copied each parent, which also copied the fitness function (and any logger); it now copies shallowly.
-- One scene, 3 seeds. Next: counter, garden, bicycle, then decide between a richer search space (importance x opacity x
-  scale interactions, SH cap) and the Pareto-front direction.
+- 3 seeds, 4 scenes, fixed tau. **Superseded by the next section:** these kept % hide badly damaged views (garden's is not a valid 40 dB-on-test number).
+
+## Robust fitness, four scenes (2026-11-17)
+
+Why: the 8-view mean hid badly damaged views. Diagnosis (garden, importance solutions): mean PSNR over **all** train views
+is 40.4 dB (the 8 views are fine on average), but the **worst train view is 24 dB** and the worst test view 21 dB, so test
+mean falls to 33.7 dB. More views alone (32, mean only) did not help (test 33.9-34.5). What helped: 32 fitness views plus a
+**worst-view floor of 35 dB** (`--views 32 --worst-tau 35`).
+
+% kept at mean >= 40 dB and worst fitness view >= 35 dB (GA = mean over 3 seeds (best); sweep = 64 evals, 1 gene):
+
+| Scene | GA | Random | Importance sweep | Opacity sweep | Test PSNR, GA (worst view) |
+|---|---|---|---|---|---|
+| bonsai | 61.7 (52.2) | 67.6 | **50.8** | 73.9 | 40.7-44.8 (32-36) |
+| counter | **54.2 (52.4)** | 63.8 | 55.6 | 65.3 | 40.1-41.5 (34-35) |
+| garden | **58.6 (57.4)** | not run | 63.5 | 67.2 | 37.2-38.2 (24-25) |
+| bicycle | 66.2 (60.5) | 78.7 | **60.3** | 74.1 | 40.9-45.3 (34-37) |
+
+- **Honest cost of robustness:** 8-14 points more kept than the 8-view numbers (importance sweep 43/43/49/51 -> 51/56/64/60),
+  still 4-23 points better than opacity alone. The earlier 43-51% figures were not safe to report.
+- **GA vs sweep is now mixed:** the GA wins on counter and garden (by 1.4 and 4.9 mean), loses on bonsai and bicycle. Caveat:
+  the 64-point sweep overshoots the sharp feasible edge (best point sits at 46-50 dB mean), so a finer sweep may erase the
+  GA wins (next step 2). GA means are noisy (bonsai 52-74% across seeds): the thin feasible region needs more evals or a
+  better mutation size.
+- **The floor does not fully transfer:** garden's test worst view is still ~25 dB; elsewhere 32-37 dB. Importance is
+  the damaging gene (opacity-only solutions have test worst 37-39 dB on garden).
+- 3 seeds per method, one tau, one floor (35 dB, chosen from opacity solutions' worst views of ~37 dB; not tuned).
 
 ## Compute budget
 
