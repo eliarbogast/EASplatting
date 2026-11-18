@@ -1,0 +1,178 @@
+[
+ {
+  "view": "worst_view_DSC07988",
+  "view_name": "worst test view",
+  "test_image": "DSC07988",
+  "column": "unpruned",
+  "label": "unpruned (reference)",
+  "file": "worst_view_DSC07988__unpruned.png",
+  "error": null,
+  "zoom": "worst_view_DSC07988__unpruned__zoom4x.png",
+  "kept_pct": null,
+  "psnr_db": null,
+  "size_px": [
+   1297,
+   840
+  ],
+  "zoom_box_xywh": [
+   0,
+   0,
+   324,
+   210
+  ]
+ },
+ {
+  "view": "worst_view_DSC07988",
+  "view_name": "worst test view",
+  "test_image": "DSC07988",
+  "column": "GA best",
+  "label": "GA best: 57.4% of Gaussians kept, 24.3 dB PSNR vs unpruned",
+  "file": "worst_view_DSC07988__ga_best__57.4pct_kept__24.3dB.png",
+  "error": "worst_view_DSC07988__ga_best__57.4pct_kept__24.3dB__error.png",
+  "zoom": "worst_view_DSC07988__ga_best__57.4pct_kept__24.3dB__zoom4x.png",
+  "kept_pct": 57.36,
+  "psnr_db": 24.26,
+  "size_px": [
+   1297,
+   840
+  ],
+  "zoom_box_xywh": [
+   0,
+   0,
+   324,
+   210
+  ]
+ },
+ {
+  "view": "worst_view_DSC07988",
+  "view_name": "worst test view",
+  "test_image": "DSC07988",
+  "column": "importance sweep",
+  "label": "importance sweep: 63.5% of Gaussians kept, 24.1 dB PSNR vs unpruned",
+  "file": "worst_view_DSC07988__importance_sweep__63.5pct_kept__24.1dB.png",
+  "error": "worst_view_DSC07988__importance_sweep__63.5pct_kept__24.1dB__error.png",
+  "zoom": "worst_view_DSC07988__importance_sweep__63.5pct_kept__24.1dB__zoom4x.png",
+  "kept_pct": 63.49,
+  "psnr_db": 24.14,
+  "size_px": [
+   1297,
+   840
+  ],
+  "zoom_box_xywh": [
+   0,
+   0,
+   324,
+   210
+  ]
+ },
+ {
+  "view": "worst_view_DSC07988",
+  "view_name": "worst test view",
+  "test_image": "DSC07988",
+  "column": "opacity sweep",
+  "label": "opacity sweep: 67.2% of Gaussians kept, 41.2 dB PSNR vs unpruned",
+  "file": "worst_view_DSC07988__opacity_sweep__67.2pct_kept__41.2dB.png",
+  "error": "worst_view_DSC07988__opacity_sweep__67.2pct_kept__41.2dB__error.png",
+  "zoom": "worst_view_DSC07988__opacity_sweep__67.2pct_kept__41.2dB__zoom4x.png",
+  "kept_pct": 67.2,
+  "psnr_db": 41.22,
+  "size_px": [
+   1297,
+   840
+  ],
+  "zoom_box_xywh": [
+   0,
+   0,
+   324,
+   210
+  ]
+ },
+ {
+  "view": "median_view_DSC08004",
+  "view_name": "median test view",
+  "test_image": "DSC08004",
+  "column": "unpruned",
+  "label": "unpruned (reference)",
+  "file": "median_view_DSC08004__unpruned.png",
+  "error": null,
+  "zoom": "median_view_DSC08004__unpruned__zoom4x.png",
+  "kept_pct": null,
+  "psnr_db": null,
+  "size_px": [
+   1297,
+   840
+  ],
+  "zoom_box_xywh": [
+   400,
+   0,
+   324,
+   210
+  ]
+ },
+ {
+  "view": "median_view_DSC08004",
+  "view_name": "median test view",
+  "test_image": "DSC08004",
+  "column": "GA best",
+  "label": "GA best: 57.4% of Gaussians kept, 38.8 dB PSNR vs unpruned",
+  "file": "median_view_DSC08004__ga_best__57.4pct_kept__38.8dB.png",
+  "error": "median_view_DSC08004__ga_best__57.4pct_kept__38.8dB__error.png",
+  "zoom": "median_view_DSC08004__ga_best__57.4pct_kept__38.8dB__zoom4x.png",
+  "kept_pct": 57.36,
+  "psnr_db": 38.85,
+  "size_px": [
+   1297,
+   840
+  ],
+  "zoom_box_xywh": [
+   400,
+   0,
+   324,
+   210
+  ]
+ },
+ {
+  "view": "median_view_DSC08004",
+  "view_name": "median test view",
+  "test_image": "DSC08004",
+  "column": "importance sweep",
+  "label": "importance sweep: 63.5% of Gaussians kept, 41.0 dB PSNR vs unpruned",
+  "file": "median_view_DSC08004__importance_sweep__63.5pct_kept__41.0dB.png",
+  "error": "median_view_DSC08004__importance_sweep__63.5pct_kept__41.0dB__error.png",
+  "zoom": "median_view_DSC08004__importance_sweep__63.5pct_kept__41.0dB__zoom4x.png",
+  "kept_pct": 63.49,
+  "psnr_db": 41.02,
+  "size_px": [
+   1297,
+   840
+  ],
+  "zoom_box_xywh": [
+   400,
+   0,
+   324,
+   210
+  ]
+ },
+ {
+  "view": "median_view_DSC08004",
+  "view_name": "median test view",
+  "test_image": "DSC08004",
+  "column": "opacity sweep",
+  "label": "opacity sweep: 67.2% of Gaussians kept, 42.1 dB PSNR vs unpruned",
+  "file": "median_view_DSC08004__opacity_sweep__67.2pct_kept__42.1dB.png",
+  "error": "median_view_DSC08004__opacity_sweep__67.2pct_kept__42.1dB__error.png",
+  "zoom": "median_view_DSC08004__opacity_sweep__67.2pct_kept__42.1dB__zoom4x.png",
+  "kept_pct": 67.2,
+  "psnr_db": 42.06,
+  "size_px": [
+   1297,
+   840
+  ],
+  "zoom_box_xywh": [
+   400,
+   0,
+   324,
+   210
+  ]
+ }
+]

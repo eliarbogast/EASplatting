@@ -7,7 +7,7 @@ Methods (all minimise kept fraction subject to PSNR >= tau vs the unpruned rende
   random       the same number of uniform random genomes
   sweep_<gene> 1-D sweep of one gene with every other gene off (deterministic, run once)
 Output: results/<scene>_<genes>g[_v<views>][_w<floor>]/log.jsonl (every evaluation) and summary.json (best per run,
-held-out PSNRs), then plot_run.publish() copies run.png + summary.json into the tracked figures/runs/ and refreshes
+held-out PSNRs), then plot_run.publish() copies plots.png, summary.json and renders.jpg into the tracked figures/runs/<run>/ and refreshes
 figures/compare.png: commit those with every run.
 """
 
@@ -118,6 +118,7 @@ def main():
     ap.add_argument("--mutation", type=float, default=0.1)
     ap.add_argument("--sweep-points", type=int, default=64)
     ap.add_argument("--out", default=None, help="default results/<scene>_<genes>g")
+    ap.add_argument("--publish-images", action="store_true", help="also commit-ready copy of the full-resolution images (~17 MB) in figures/")
     args = ap.parse_args()
     n = args.genes
     tag = (f"_v{args.views}" if args.views != 8 else "") + (f"_w{args.worst_tau:g}" if args.worst_tau else "")
@@ -173,7 +174,7 @@ def main():
     from easplatting.plot_run import publish
     from easplatting.strip import render_strip
     render_strip(out, ctx)
-    print(f"wrote {out}/log.jsonl and summary.json; figures: {', '.join(str(p) for p in publish(out))}")
+    print(f"wrote {out}/log.jsonl and summary.json; figures: {', '.join(str(p) for p in publish(out, images=args.publish_images))}")
 
 
 if __name__ == "__main__":

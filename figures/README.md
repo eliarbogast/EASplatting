@@ -2,14 +2,14 @@
 
 The single place for results (plans, decisions and open questions live in [`docs/EA_PLAN.md`](../docs/EA_PLAN.md)).
 Every `python -m easplatting.experiment` run publishes its figure here automatically (`easplatting/plot_run.py`):
-`runs/<run>.png` (the standard 4-panel plot) and `runs/<run>.json` (its summary), and it refreshes `compare.png`.
+`runs/<run>/` (one folder per run: `plots.png` the standard 4-panel plot, `renders.jpg` the render overview, `summary.json`) and refreshes `compare.png`.
 **Commit this folder with each run** (`results/` is git-ignored; the per-evaluation `log.jsonl` stays there).
 Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 
 ## Headline (2026-11-18; 4 genes, 3 seeds, 672 evals per GA/random run, sweeps 64 evals per gene)
 % of Gaussians kept (lower is better); quality is always measured against the unpruned render.
 
-**A. Fitness: mean PSNR >= 40 dB on 8 half-res train views** (`runs/<scene>_4g.png`)
+**A. Fitness: mean PSNR >= 40 dB on 8 half-res train views** (`runs/<scene>_4g/`)
 
 | Scene | GA, mean (best) | Random | Importance sweep | Opacity sweep | Worst test view, dB: GA / imp. / opac. |
 |---|---|---|---|---|---|
@@ -18,7 +18,7 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 | garden | 55.2 (49.1) | 63.5 | **49.2** | 65.6 | 23 / 21 / 38 |
 | bicycle | 52.3 (50.2) | 75.4 | **50.8** | 74.1 | 30 / 30 / 38 |
 
-**B. Robust fitness: 32 views, mean >= 40 dB and worst view >= 35 dB** (`runs/<scene>_4g_v32_w35.png`)
+**B. Robust fitness: 32 views, mean >= 40 dB and worst view >= 35 dB** (`runs/<scene>_4g_v32_w35/`)
 
 | Scene | GA, mean (best) | Random | Importance sweep | Opacity sweep | Worst test view, dB: GA / imp. / opac. |
 |---|---|---|---|---|---|
@@ -45,15 +45,23 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 garden 66.4 / 72.6 / 75.0-69.9 / **65.6**; bicycle 74.2 / 77.7 / 83.1-77.4 / **74.1**. With three threshold genes a 64-eval opacity sweep
 matches the GA (the best solutions switch scale and anisotropy off); the best opacity threshold varies ~4x across scenes (0.019-0.074).
 
-## What the pruned scenes look like: `runs/<run>_renders.jpg`
-One strip per run (`python -m easplatting.strip`, written automatically after each run; GPU). Columns: unpruned | best GA genome | best importance-sweep
-genome | best opacity-sweep genome. Two held-out test views (the GA genome's **worst** view and the **median** one), each with three rows: the renders,
-an error map (black = identical), and a 4x zoom of the window where the GA genome's error is highest (yellow box, same window in every column).
-Example (`garden_4g_renders.jpg`): at 20.7 dB the importance/GA renders look the same as the reference at full size, but the zoom shows broken,
-dithered detail along the roof edge and foliage where the opacity render (40.4 dB, 65.6% kept) stays clean: the 21-30 dB tail is real, local damage
-in distant, low-importance regions.
+## What the pruned scenes look like: `runs/<run>/renders.jpg` and `runs/<run>/images/`
+`python -m easplatting.strip` (written automatically after each run; GPU). **`renders.jpg`** is the overview: columns unpruned | best GA genome |
+best importance-sweep genome | best opacity-sweep genome; two held-out test views (the GA genome's **worst** view and the **median** one), each with
+three rows: the renders, an error map (black = identical), and a zoom (shown 4x larger) of the window where the GA genome's error is highest (yellow box, same
+window in every column). The overview is a downscaled JPEG.
 
-## How to read `runs/<run>.png`
+**`images/`** holds every picture of that overview on its own, lossless and at full resolution (8-bit PNG, not resized), with a descriptive name
+`<worst|median>_view_<test image>__<method>__<kept>pct_kept__<psnr>dB[__error|__zoom4x].png` (`zoom4x` = the yellow-box window at native pixels, i.e. 1/4 of the image's width and height), and an `images/README.md` index (captions + thumbnails,
+renders on GitHub) with `index.json` (the same, machine readable, incl. the zoom box). Full-resolution images are ~17 MB per run, so they always
+exist in `results/<run>/images/` but are committed only when asked for (`--publish-images`, or `python -m easplatting.plot_run results/<run> --images`).
+**Committed now:** the four robust-setting runs (`*_4g_v32_w35`). Regenerate any run's images without rerunning the search: `python -m easplatting.strip results/<run>`.
+
+Example (`runs/garden_4g_v32_w35/`): see the strip. Earlier mean-only example (`garden_4g`): at 20.7 dB the importance/GA renders look the same as the
+reference at full size, but the zoom shows broken, dithered detail along the roof edge and foliage where the opacity render (40.4 dB, 65.6% kept)
+stays clean: the 21-30 dB tail is real, local damage in distant, low-importance regions.
+
+## How to read `runs/<run>/plots.png`
 A best feasible % kept vs evaluations (GA/random per seed, sweeps dashed) | B every evaluation in the (% kept, mean PSNR) plane, constraint dashed |
 C best genome per run | D the same genomes re-measured: fitness views, all train views, test views, worst test view (dashed lines: mean constraint,
 worst-view floor). Colors: GA blue, random orange, importance sweep aqua, other sweeps gray. Run names: `<scene>_<genes>g[_v<views>][_w<floor>]`.
@@ -63,7 +71,7 @@ worst-view floor). Colors: GA blue, random orange, importance sweep aqua, other 
   barely beat a 1-D sweep (negative result); (3) an importance gene cuts the count by another ~25 points; (4) the mean-PSNR constraint hides
   badly damaged views, so we constrain the worst view too; (5) honest numbers: 51-66% kept at 40 dB mean / 35 dB worst; (6) next: Pareto front,
   evolved importance scores.
-- **Slide-ready now:** `compare.png` (one-slide summary), any `runs/*.png` (method detail), `runs/*_renders.jpg` (what it looks like; the robust-setting
+- **Slide-ready now:** `compare.png` (one-slide summary), any `runs/*/plots.png` (method detail), `runs/*/renders.jpg` and `images/` (what it looks like; the robust-setting
   strip per scene is the natural hero image), the tables above.
 - **Worth making (not done):** a "what got removed" render (removed Gaussians only) and top-down kept/removed plot; threshold-sweep GIF (opacity 0 -> 0.2); importance and opacity histograms with the evolved cutoffs; per-view
   PSNR bars (the tail damage); FPS of pruned scenes (the speed claim is untested: we report counts, not FPS yet).

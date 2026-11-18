@@ -1,15 +1,16 @@
 """plot_run.py — one standard PNG per experiment run, and one comparison PNG across runs. CPU only.
 
-    python -m easplatting.plot_run results/bonsai_4g_v32_w35   # -> results/bonsai_4g_v32_w35/run.png
+    python -m easplatting.plot_run results/bonsai_4g_v32_w35   # -> results/bonsai_4g_v32_w35/plots.png
     python -m easplatting.plot_run --all                       # every results/*/summary.json, plus figures/compare.png
 
-run.png (reads summary.json + log.jsonl written by experiment.py):
+plots.png (reads summary.json + log.jsonl written by experiment.py):
   A  best feasible % kept so far vs evaluations (GA / random per seed; sweeps as dashed lines)
   B  every evaluation in the (% kept, mean PSNR) plane; the constraint is the dashed line
   C  best % kept per run          D  the same genomes re-checked: fitness views, all train views, test views, worst view
 compare.png: % kept per method, one panel per scene, one row per fitness setting (views / constraint).
-experiment.py calls publish() after every run: the PNG and the small summary.json are copied into the TRACKED folder
-figures/runs/ (results/ is git-ignored) and figures/compare.png is refreshed. Commit figures/ with the run.
+experiment.py calls publish() after every run: plots.png, summary.json and renders.jpg (see strip.py) are copied into the
+TRACKED folder figures/runs/<run>/ (results/ is git-ignored) and figures/compare.png is refreshed. Commit figures/ with the run.
+images/ (full-resolution lossless renders, ~17 MB per run) is only copied with --publish-images (experiment.py) or --images (here).
 Colors: GA blue, random orange, importance sweep aqua, other sweeps gray (validated slots 1-3 of the dataviz palette).
 """
 
@@ -74,7 +75,7 @@ def best_so_far(rows):
 def plot_run(run_dir, out=None):
     run_dir = Path(run_dir)
     args, runs, rows = load_run(run_dir)
-    out = Path(out or run_dir / "run.png")
+    out = Path(out or run_dir / "plots.png")
     fig, ax = plt.subplots(2, 2, figsize=(13, 8.6), facecolor=SURFACE, constrained_layout=True)
     (a, b), (c, d) = ax
     fig.suptitle(f"{args['scene']}, {args['genes']} genes: {setting_label(args)}   ({run_dir.name})", x=0.01, ha="left",
@@ -213,25 +214,29 @@ def plot_compare(results_dir="results", out=None):
     return out
 
 
-def publish(run_dir, fig_dir=FIG_DIR):
-    """run.png + summary.json of one run into the tracked figures/runs/, and refresh figures/compare.png."""
-    run_dir, runs = Path(run_dir), Path(fig_dir) / "runs"
-    runs.mkdir(parents=True, exist_ok=True)
-    png = plot_run(run_dir)
-    shutil.copy(png, runs / f"{run_dir.name}.png")
-    shutil.copy(run_dir / "summary.json", runs / f"{run_dir.name}.json")
+def publish(run_dir, fig_dir=FIG_DIR, images=False):
+    """Copy a run's plots.png, summary.json, renders.jpg into the tracked figures/runs/<run>/ and refresh compare.png.
+    images=True also copies the full-resolution images/ (~17 MB per run, so opt-in: python -m easplatting.plot_run <run> --images)."""
+    run_dir = Path(run_dir)
+    dest = Path(fig_dir) / "runs" / run_dir.name
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy(plot_run(run_dir), dest / "plots.png")
+    shutil.copy(run_dir / "summary.json", dest / "summary.json")
     if (run_dir / "renders.jpg").exists():
-        shutil.copy(run_dir / "renders.jpg", runs / f"{run_dir.name}_renders.jpg")
-    return runs / f"{run_dir.name}.png", plot_compare(run_dir.parent, Path(fig_dir) / "compare.png")
+        shutil.copy(run_dir / "renders.jpg", dest / "renders.jpg")
+    if images and (run_dir / "images").exists():
+        shutil.copytree(run_dir / "images", dest / "images", dirs_exist_ok=True)
+    return dest / "plots.png", plot_compare(run_dir.parent, Path(fig_dir) / "compare.png")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run", nargs="?", help="results/<run> directory")
-    ap.add_argument("--all", action="store_true", help="every run under results/, plus results/compare.png")
+    ap.add_argument("--all", action="store_true", help="every run under results/, plus figures/compare.png")
+    ap.add_argument("--images", action="store_true", help="also publish the full-resolution images/ of the given run")
     args = ap.parse_args()
     if args.run:
-        print(*publish(args.run))
+        print(*publish(args.run, images=args.images))
     if args.all:
         for p in sorted(Path("results").glob("*/summary.json")):
             publish(p.parent)

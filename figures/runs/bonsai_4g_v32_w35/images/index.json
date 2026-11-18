@@ -1,0 +1,178 @@
+[
+ {
+  "view": "worst_view_DSCF5661",
+  "view_name": "worst test view",
+  "test_image": "DSCF5661",
+  "column": "unpruned",
+  "label": "unpruned (reference)",
+  "file": "worst_view_DSCF5661__unpruned.png",
+  "error": null,
+  "zoom": "worst_view_DSCF5661__unpruned__zoom4x.png",
+  "kept_pct": null,
+  "psnr_db": null,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   0,
+   0,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "worst_view_DSCF5661",
+  "view_name": "worst test view",
+  "test_image": "DSCF5661",
+  "column": "GA best",
+  "label": "GA best: 52.2% of Gaussians kept, 32.0 dB PSNR vs unpruned",
+  "file": "worst_view_DSCF5661__ga_best__52.2pct_kept__32.0dB.png",
+  "error": "worst_view_DSCF5661__ga_best__52.2pct_kept__32.0dB__error.png",
+  "zoom": "worst_view_DSCF5661__ga_best__52.2pct_kept__32.0dB__zoom4x.png",
+  "kept_pct": 52.22,
+  "psnr_db": 31.95,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   0,
+   0,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "worst_view_DSCF5661",
+  "view_name": "worst test view",
+  "test_image": "DSCF5661",
+  "column": "importance sweep",
+  "label": "importance sweep: 50.8% of Gaussians kept, 31.0 dB PSNR vs unpruned",
+  "file": "worst_view_DSCF5661__importance_sweep__50.8pct_kept__31.0dB.png",
+  "error": "worst_view_DSCF5661__importance_sweep__50.8pct_kept__31.0dB__error.png",
+  "zoom": "worst_view_DSCF5661__importance_sweep__50.8pct_kept__31.0dB__zoom4x.png",
+  "kept_pct": 50.79,
+  "psnr_db": 30.96,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   0,
+   0,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "worst_view_DSCF5661",
+  "view_name": "worst test view",
+  "test_image": "DSCF5661",
+  "column": "opacity sweep",
+  "label": "opacity sweep: 73.9% of Gaussians kept, 41.0 dB PSNR vs unpruned",
+  "file": "worst_view_DSCF5661__opacity_sweep__73.9pct_kept__41.0dB.png",
+  "error": "worst_view_DSCF5661__opacity_sweep__73.9pct_kept__41.0dB__error.png",
+  "zoom": "worst_view_DSCF5661__opacity_sweep__73.9pct_kept__41.0dB__zoom4x.png",
+  "kept_pct": 73.87,
+  "psnr_db": 40.97,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   0,
+   0,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "median_view_DSCF5677",
+  "view_name": "median test view",
+  "test_image": "DSCF5677",
+  "column": "unpruned",
+  "label": "unpruned (reference)",
+  "file": "median_view_DSCF5677__unpruned.png",
+  "error": null,
+  "zoom": "median_view_DSCF5677__unpruned__zoom4x.png",
+  "kept_pct": null,
+  "psnr_db": null,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   0,
+   352,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "median_view_DSCF5677",
+  "view_name": "median test view",
+  "test_image": "DSCF5677",
+  "column": "GA best",
+  "label": "GA best: 52.2% of Gaussians kept, 45.5 dB PSNR vs unpruned",
+  "file": "median_view_DSCF5677__ga_best__52.2pct_kept__45.5dB.png",
+  "error": "median_view_DSCF5677__ga_best__52.2pct_kept__45.5dB__error.png",
+  "zoom": "median_view_DSCF5677__ga_best__52.2pct_kept__45.5dB__zoom4x.png",
+  "kept_pct": 52.22,
+  "psnr_db": 45.49,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   0,
+   352,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "median_view_DSCF5677",
+  "view_name": "median test view",
+  "test_image": "DSCF5677",
+  "column": "importance sweep",
+  "label": "importance sweep: 50.8% of Gaussians kept, 45.0 dB PSNR vs unpruned",
+  "file": "median_view_DSCF5677__importance_sweep__50.8pct_kept__45.0dB.png",
+  "error": "median_view_DSCF5677__importance_sweep__50.8pct_kept__45.0dB__error.png",
+  "zoom": "median_view_DSCF5677__importance_sweep__50.8pct_kept__45.0dB__zoom4x.png",
+  "kept_pct": 50.79,
+  "psnr_db": 44.99,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   0,
+   352,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "median_view_DSCF5677",
+  "view_name": "median test view",
+  "test_image": "DSCF5677",
+  "column": "opacity sweep",
+  "label": "opacity sweep: 73.9% of Gaussians kept, 42.7 dB PSNR vs unpruned",
+  "file": "median_view_DSCF5677__opacity_sweep__73.9pct_kept__42.7dB.png",
+  "error": "median_view_DSCF5677__opacity_sweep__73.9pct_kept__42.7dB__error.png",
+  "zoom": "median_view_DSCF5677__opacity_sweep__73.9pct_kept__42.7dB__zoom4x.png",
+  "kept_pct": 73.87,
+  "psnr_db": 42.68,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   0,
+   352,
+   389,
+   259
+  ]
+ }
+]

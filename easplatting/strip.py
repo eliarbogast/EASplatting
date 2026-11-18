@@ -4,14 +4,19 @@
     python -m easplatting.strip --all                # every results/*/summary.json (no search is rerun; genomes come from summary.json)
 
 Columns: unpruned | best GA genome | best importance-sweep genome | best opacity-sweep genome (those that exist and are feasible).
+Besides the overview, every image is also saved by itself, lossless and at full resolution, in results/<run>/images/ with a descriptive
+filename and an index (images/README.md, images/index.json): renders, error maps and zoom crops.
 Rows: two held-out test views, the WORST view of the GA genome (the honest failure case) and the MEDIAN one. For each view three rows:
-the pruned renders, an error map (|pruned - unpruned|, same scale everywhere), and a 4x zoom of the window where the GA genome's error
+the pruned renders, an error map (|pruned - unpruned|, same scale everywhere), and a zoom (shown 4x larger) of the window where the GA genome's error
 is highest (yellow box, same window in every column). Captions give % kept and PSNR vs the unpruned render.
 """
 
 import argparse
 import json
 from pathlib import Path
+
+import numpy as np
+from PIL import Image
 
 import torch
 import torch.nn.functional as F
@@ -29,6 +34,7 @@ from easplatting.thresholds import keep_mask
 SURFACE, INK, INK2 = "#fcfcfb", "#0b0b0b", "#52514e"
 CAPTION = {"ga": "GA best", "sweep_importance": "importance sweep", "sweep_opacity": "opacity sweep"}
 ERR_MAX = 0.25                                           # |difference| that maps to the brightest color
+KEY = {"ga": "ga_best", "sweep_importance": "importance_sweep", "sweep_opacity": "opacity_sweep"}
 ZOOM = 4                                                 # the zoom window is 1/ZOOM of the image in each dimension
 
 
@@ -48,6 +54,49 @@ def worst_window(err, zoom=ZOOM):
     pooled = F.avg_pool2d(err[None, None], (h, w), stride=(max(h // 8, 1), max(w // 8, 1)))[0, 0]
     iy, ix = divmod(int(pooled.argmax()), pooled.shape[1])
     return iy * max(h // 8, 1), ix * max(w // 8, 1), h, w
+
+
+def _png(t, path):
+    """Lossless PNG from a float (H, W, 3) or (H, W) tensor in [0, 1] (8-bit, no resizing)."""
+    Image.fromarray((t.clamp(0, 1) * 255 + 0.5).byte().cpu().numpy()).save(path)
+
+
+def save_images(img_dir, view, vname, test_name, cols, imgs, ref, window):
+    """Every render, error map and zoom crop of one view as its own lossless full-resolution PNG; returns index records."""
+    y, x, h, w = window
+    records = []
+    for (cname, run), img in zip(cols, imgs):
+        base = f"{view}__" + ("unpruned" if run is None else KEY[run["method"]])
+        if run is None:
+            label, p = "unpruned (reference)", None
+        else:
+            p = psnr_fast(img[None], ref[None], max_db=60).item()
+            base += f"__{100 * run['kept']:.1f}pct_kept__{p:.1f}dB"
+            label = f"{cname}: {100 * run['kept']:.1f}% of Gaussians kept, {p:.1f} dB PSNR vs unpruned"
+            _png((img - ref).abs().mean(-1).clamp(0, ERR_MAX) / ERR_MAX, img_dir / f"{base}__error.png")
+        _png(img, img_dir / f"{base}.png")
+        _png(img[y:y + h, x:x + w], img_dir / f"{base}__zoom{ZOOM}x.png")
+        records.append(dict(view=view, view_name=vname, test_image=test_name, column=cname, label=label, file=f"{base}.png",
+                            error=None if run is None else f"{base}__error.png", zoom=f"{base}__zoom{ZOOM}x.png",
+                            kept_pct=None if run is None else round(100 * run["kept"], 2), psnr_db=None if p is None else round(p, 2),
+                            size_px=[img.shape[1], img.shape[0]], zoom_box_xywh=[x, y, w, h]))
+    return records
+
+
+def write_index(img_dir, title, records):
+    (img_dir / "index.json").write_text(json.dumps(records, indent=1))
+    lines = [f"# {title}", "", "Lossless full-resolution PNGs (8-bit, not resized). Error map: black = identical, white = pixel error >= "
+             f"{ERR_MAX:g} of full brightness. `zoom{ZOOM}x` = the yellow box of `../renders.jpg` (the window, 1/{ZOOM} of the image's width and height, where the GA genome's error is "
+             "highest, the same for every column of a view) cut out at native pixels; the overview shows it {ZOOM}x larger. PSNR is against the unpruned render of the same view.", ""]
+    for view in dict.fromkeys(r["view"] for r in records):
+        rs = [r for r in records if r["view"] == view]
+        lines += [f"## {rs[0]['view_name']} (test image `{rs[0]['test_image']}`, {rs[0]['size_px'][0]}x{rs[0]['size_px'][1]})", "",
+                  "| | render | error map | zoom |", "|---|---|---|---|"]
+        for r in rs:
+            cell = lambda f: f'<a href="{f}"><img src="{f}" width="260"></a>' if f else ""
+            lines.append(f"| **{r['label']}**<br>`{r['file']}` | {cell(r['file'])} | {cell(r['error'])} | {cell(r['zoom'])} |")
+        lines.append("")
+    (img_dir / "README.md").write_text("\n".join(lines))
 
 
 @torch.no_grad()
@@ -72,12 +121,17 @@ def render_strip(run_dir, ctx=None, out=None):
 
     cols = [("unpruned", None)] + [(CAPTION[m], r) for m, r in picks.items()]
     n = len(cols)
+    img_dir = (Path(out).parent if out else run_dir) / "images"
+    img_dir.mkdir(exist_ok=True)
+    records = []
     fig, axes = plt.subplots(3 * len(views), n, figsize=(3.6 * n, 2.0 * 3 * len(views) + 0.8), facecolor=SURFACE, constrained_layout=True)
     fig.suptitle(f"{args['scene']}: what the best genomes look like ({run_dir.name})", x=0.01, ha="left", fontsize=11, color=INK, fontweight="bold")
     for vi, (vname, v) in enumerate(views):
         ref = base[v]
         imgs = [ref if run is None else render_views(pruned(run), test, [v], batch_size=1)[0] for _, run in cols]
         y, x, h, w = worst_window((imgs[1] - ref).abs().mean(-1))           # window chosen on the GA genome's error
+        stem = Path(str(test.names[v])).stem
+        records += save_images(img_dir, f"{vname.split()[0]}_view_{stem}", vname, stem, cols, imgs, ref, (y, x, h, w))
         for ci, ((cname, run), img) in enumerate(zip(cols, imgs)):
             top, err_ax, zoom_ax = axes[3 * vi, ci], axes[3 * vi + 1, ci], axes[3 * vi + 2, ci]
             for a in (top, err_ax, zoom_ax):
@@ -99,6 +153,7 @@ def render_strip(run_dir, ctx=None, out=None):
             zoom_ax.imshow(img[y:y + h, x:x + w].clamp(0, 1).cpu().numpy())
             if ci == 0:
                 top.set_ylabel(f"{vname}\n#{Path(str(test.names[v])).stem}", fontsize=8.5, color=INK2)
+    write_index(img_dir, f"{args['scene']}: individual renders ({run_dir.name})", records)
     out = Path(out or run_dir / "renders.jpg")
     fig.savefig(out, dpi=100, facecolor=SURFACE, pil_kwargs=dict(quality=85))
     plt.close(fig)

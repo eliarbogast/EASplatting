@@ -60,5 +60,5 @@ scripts/               setup_local.sh, get_data.sh, train_gsplat.sh  (shell)
                        measure.py (cost of a fitness evaluation; what the metrics mean)
 tests/                 CPU tests with a fake gsplat (tests/fake_gsplat)
 docs/                  RUNNING.md, EA_PLAN.md, BACKGROUND.md, archive/
-figures/               TRACKED results: README.md (results summary), compare.png, runs/<run>.png + .json + _renders.jpg (written by experiment.py)
+figures/               TRACKED results: README.md (results summary), compare.png, runs/<run>/ with plots.png, renders.jpg, summary.json, optional images/ (written by experiment.py)
 ```

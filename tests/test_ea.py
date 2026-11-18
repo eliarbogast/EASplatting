@@ -118,8 +118,9 @@ def test_plot_run_publish(tmp_path):
     (run / "log.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
     (run / "summary.json").write_text(json.dumps(dict(args=dict(scene="bonsai", genes=4, tau=40.0, views=8, worst_tau=None), runs=runs)))
     png, compare = publish(run, tmp_path / "figures")
-    assert png.exists() and compare.exists() and (tmp_path / "figures" / "runs" / "toy_4g.json").exists()
-    assert (run / "run.png").stat().st_size > 10_000
+    assert png == tmp_path / "figures" / "runs" / "toy_4g" / "plots.png" and png.exists() and compare.exists()
+    assert (tmp_path / "figures" / "runs" / "toy_4g" / "summary.json").exists()
+    assert (run / "plots.png").stat().st_size > 10_000
 
 
 def test_strip_worst_window_and_picks():
