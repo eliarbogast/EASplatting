@@ -45,6 +45,14 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 garden 66.4 / 72.6 / 75.0-69.9 / **65.6**; bicycle 74.2 / 77.7 / 83.1-77.4 / **74.1**. With three threshold genes a 64-eval opacity sweep
 matches the GA (the best solutions switch scale and anisotropy off); the best opacity threshold varies ~4x across scenes (0.019-0.074).
 
+## What the pruned scenes look like: `runs/<run>_renders.jpg`
+One strip per run (`python -m easplatting.strip`, written automatically after each run; GPU). Columns: unpruned | best GA genome | best importance-sweep
+genome | best opacity-sweep genome. Two held-out test views (the GA genome's **worst** view and the **median** one), each with three rows: the renders,
+an error map (black = identical), and a 4x zoom of the window where the GA genome's error is highest (yellow box, same window in every column).
+Example (`garden_4g_renders.jpg`): at 20.7 dB the importance/GA renders look the same as the reference at full size, but the zoom shows broken,
+dithered detail along the roof edge and foliage where the opacity render (40.4 dB, 65.6% kept) stays clean: the 21-30 dB tail is real, local damage
+in distant, low-importance regions.
+
 ## How to read `runs/<run>.png`
 A best feasible % kept vs evaluations (GA/random per seed, sweeps dashed) | B every evaluation in the (% kept, mean PSNR) plane, constraint dashed |
 C best genome per run | D the same genomes re-measured: fitness views, all train views, test views, worst test view (dashed lines: mean constraint,
@@ -55,7 +63,7 @@ worst-view floor). Colors: GA blue, random orange, importance sweep aqua, other 
   barely beat a 1-D sweep (negative result); (3) an importance gene cuts the count by another ~25 points; (4) the mean-PSNR constraint hides
   badly damaged views, so we constrain the worst view too; (5) honest numbers: 51-66% kept at 40 dB mean / 35 dB worst; (6) next: Pareto front,
   evolved importance scores.
-- **Slide-ready now:** `compare.png` (one-slide summary), any `runs/*.png` (method detail), the tables above.
-- **Worth making (not done):** before/after render strip with error map of the best genome per scene (GPU); a "what got removed" render and
-  top-down kept/removed plot; threshold-sweep GIF (opacity 0 -> 0.2); importance and opacity histograms with the evolved cutoffs; per-view
+- **Slide-ready now:** `compare.png` (one-slide summary), any `runs/*.png` (method detail), `runs/*_renders.jpg` (what it looks like; the robust-setting
+  strip per scene is the natural hero image), the tables above.
+- **Worth making (not done):** a "what got removed" render (removed Gaussians only) and top-down kept/removed plot; threshold-sweep GIF (opacity 0 -> 0.2); importance and opacity histograms with the evolved cutoffs; per-view
   PSNR bars (the tail damage); FPS of pruned scenes (the speed claim is untested: we report counts, not FPS yet).

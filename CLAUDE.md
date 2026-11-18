@@ -24,6 +24,7 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
   tournament selection, elitism, no crossover; keep its comments short), `experiment.py` (`python -m easplatting.experiment`:
   GA / random / 1-D sweeps on one scene, JSONL log per evaluation, summary with held-out test PSNR)
 - `easplatting/plot_run.py` standard PNG per run + `compare.png`; `experiment.py` calls `publish()` so every run lands in `figures/`
+- `easplatting/strip.py` render strip per run (unpruned vs best genomes, error maps, 4x zoom of the worst spot; GPU), `renders.jpg`, also published to `figures/`
 - `easplatting/evaluate.py` end-to-end check: scene + cameras -> renders -> metrics -> `report.json`
 - `easplatting/viewer.py` interactive viser viewer for threshold pruning
 - `easplatting/export_gsplat_cameras.py` cameras in gsplat-trainer's normalized frame
@@ -33,7 +34,7 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
   wget/curl/unzip; also range-extracts from remote zips); `measure.py` (`cost` feeds EA_PLAN's budget,
   `metrics` feeds its fitness assessment)
 - `figures/` TRACKED: `README.md` is the ONE results summary (tables, findings, presentation notes; update it after each new run, plans stay
-  in `docs/EA_PLAN.md`), `compare.png`, `runs/<run>.png|json`. Commit it with every run.
+  in `docs/EA_PLAN.md`), `compare.png`, `runs/<run>.png|json|_renders.jpg`. Commit it with every run.
 - `tests/` CPU tests with a fake gsplat (`tests/fake_gsplat`)
 - `docs/archive/` history only (bring-up results, VACC notes, first EA test); don't update it
 

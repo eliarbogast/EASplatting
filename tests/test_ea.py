@@ -120,3 +120,15 @@ def test_plot_run_publish(tmp_path):
     png, compare = publish(run, tmp_path / "figures")
     assert png.exists() and compare.exists() and (tmp_path / "figures" / "runs" / "toy_4g.json").exists()
     assert (run / "run.png").stat().st_size > 10_000
+
+
+def test_strip_worst_window_and_picks():
+    from easplatting.strip import pick_genomes, worst_window
+    err = torch.zeros(80, 120)
+    err[50:60, 90:100] = 1.0                                              # the damaged spot
+    y, x, h, w = worst_window(err, zoom=4)
+    assert (h, w) == (20, 30) and y <= 50 and y + h >= 60 and x <= 90 and x + w >= 100
+    runs = [dict(method="ga", feasible=True, kept=0.6), dict(method="ga", feasible=True, kept=0.5), dict(method="ga", feasible=False, kept=0.1),
+            dict(method="random", feasible=True, kept=0.3), dict(method="sweep_opacity", feasible=True, kept=0.7)]
+    picks = pick_genomes(runs)
+    assert picks["ga"]["kept"] == 0.5 and "random" not in picks and list(picks) == ["ga", "sweep_opacity"]

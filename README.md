@@ -50,6 +50,7 @@ easplatting/           the code; run a tool with  python -m easplatting.<name>
   genome.py, fitness.py  genome -> thresholds; feasibility-first fitness (render fitness views, PSNR vs unpruned)
   ea.py, experiment.py   minimal evolutionary algorithm (mutation + tournament selection); GA vs random vs sweeps on one scene
   plot_run.py            one standard PNG per run + a comparison PNG, published into figures/
+  strip.py               render strip per run (unpruned vs best genomes, error maps, zoom); GPU
   evaluate.py            scene + cameras -> renders -> metrics -> report.json (with cross-checks)
   viewer.py              interactive threshold-pruning viewer (viser)
   export_gsplat_cameras.py   cameras in gsplat-trainer's normalized frame
@@ -59,5 +60,5 @@ scripts/               setup_local.sh, get_data.sh, train_gsplat.sh  (shell)
                        measure.py (cost of a fitness evaluation; what the metrics mean)
 tests/                 CPU tests with a fake gsplat (tests/fake_gsplat)
 docs/                  RUNNING.md, EA_PLAN.md, BACKGROUND.md, archive/
-figures/               TRACKED results: README.md (results summary), compare.png, runs/<run>.png + .json (written by experiment.py)
+figures/               TRACKED results: README.md (results summary), compare.png, runs/<run>.png + .json + _renders.jpg (written by experiment.py)
 ```
