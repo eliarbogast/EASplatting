@@ -220,6 +220,8 @@ def publish(run_dir, fig_dir=FIG_DIR):
     png = plot_run(run_dir)
     shutil.copy(png, runs / f"{run_dir.name}.png")
     shutil.copy(run_dir / "summary.json", runs / f"{run_dir.name}.json")
+    if (run_dir / "renders.jpg").exists():
+        shutil.copy(run_dir / "renders.jpg", runs / f"{run_dir.name}_renders.jpg")
     return runs / f"{run_dir.name}.png", plot_compare(run_dir.parent, Path(fig_dir) / "compare.png")
 
 

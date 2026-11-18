@@ -49,6 +49,19 @@ def importance_scores(scene_name, scene, cams, train_idx):
     return w
 
 
+def setup_scene(scene_name, genes):
+    """Load the scene + cameras and build the gene statistics and bounds (4 genes also computes/loads importance)."""
+    scene_path, cameras_path, images = scene_paths(scene_name)
+    scene = activate(load_scene(scene_path, device="cuda"))
+    cams = load_cameras(cameras_path, images=images)
+    train_idx, test_idx = select_indices(len(cams), "train"), select_indices(len(cams), "test")
+    importance = importance_scores(scene_name, scene, cams, train_idx) if genes == 4 else None
+    stats = gene_stats(scene, importance.cuda() if importance is not None else None)
+    b = slider_bounds(stats)
+    return dict(scene=scene, cams=cams, stats=stats, train_idx=train_idx, test_idx=test_idx,
+                bounds=[b["min_opacity"], b["max_scale"], b["max_anisotropy"]])
+
+
 class Log:
     """Wraps a fitness function: counts evaluations and keeps one row per call."""
 
@@ -111,14 +124,8 @@ def main():
     out = Path(args.out or f"results/{args.scene}_{n}g{tag}")
     out.mkdir(parents=True, exist_ok=True)
 
-    scene_path, cameras_path, images = scene_paths(args.scene)
-    scene = activate(load_scene(scene_path, device="cuda"))
-    cams = load_cameras(cameras_path, images=images)
-    train_idx, test_idx = select_indices(len(cams), "train"), select_indices(len(cams), "test")
-    importance = importance_scores(args.scene, scene, cams, train_idx) if n == 4 else None
-    stats = gene_stats(scene, importance.cuda() if importance is not None else None)
-    b = slider_bounds(stats)
-    bounds = [b["min_opacity"], b["max_scale"], b["max_anisotropy"]]
+    ctx = setup_scene(args.scene, n)
+    scene, cams, stats, bounds, train_idx, test_idx = (ctx[k] for k in ("scene", "cams", "stats", "bounds", "train_idx", "test_idx"))
     views = cams.subset(select_indices(len(cams), "train", k=args.views)).scaled(0.5)   # fixed fitness views, half resolution
     fitness_function = make_fitness_function(scene, stats, bounds, views, render_views(scene, views), args.tau, args.worst_tau)
     # held-out diagnostics for each run's best genome: all train views (half res) and the test views (full res)
@@ -164,6 +171,8 @@ def main():
         k = [100 * s["kept"] for s in summary if s["method"] == method and s["feasible"]]
         print(f"{method:>18}  {np.mean(k):5.1f}  (best {min(k):.1f}, {len(k)} feasible runs)" if k else f"{method:>18}  no feasible run")
     from easplatting.plot_run import publish
+    from easplatting.strip import render_strip
+    render_strip(out, ctx)
     print(f"wrote {out}/log.jsonl and summary.json; figures: {', '.join(str(p) for p in publish(out))}")
 
 
