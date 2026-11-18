@@ -49,6 +49,8 @@ easplatting/           the code; run a tool with  python -m easplatting.<name>
   thresholds.py          pruning genes as threshold -> keep-mask logic
   genome.py, fitness.py  genome -> thresholds; feasibility-first fitness (render fitness views, PSNR vs unpruned)
   ea.py, experiment.py   minimal evolutionary algorithm (mutation + tournament selection); GA vs random vs sweeps on one scene
+  nsga2.py, map_elites.py, cmaes.py   NSGA-II (+ hypervolume), MAP-Elites, CMA-ES, in the style of ea.py
+  front.py, plot_front.py   size-quality fronts and archives: NSGA-II / MAP-Elites vs random vs sweeps; their figure
   plot_run.py            one standard PNG per run + a comparison PNG, published into figures/
   strip.py               render strip per run (unpruned vs best genomes, error maps, zoom); GPU
   evaluate.py            scene + cameras -> renders -> metrics -> report.json (with cross-checks)

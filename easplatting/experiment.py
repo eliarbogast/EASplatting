@@ -5,6 +5,7 @@
 Methods (all minimise kept fraction subject to PSNR >= tau vs the unpruned render, same fitness function):
   ga           evolutionary_algorithm (ea.py), parents + children x generations evaluations
   random       the same number of uniform random genomes
+  cmaes        CMA-ES (cmaes.py) with the same evaluation budget
   sweep_<gene> 1-D sweep of one gene with every other gene off (deterministic, run once)
 Output: results/<scene>_<genes>g[_v<views>][_w<floor>]/log.jsonl (every evaluation) and summary.json (best per run,
 held-out PSNRs), then plot_run.publish() copies plots.png, summary.json and renders.jpg into the tracked figures/runs/<run>/ and refreshes
@@ -19,14 +20,21 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from easplatting.cameras import load_cameras
+from easplatting.cameras import load_cameras, load_image
+from easplatting.cmaes import cma_es
 from easplatting.ea import evolutionary_algorithm
 from easplatting.fitness import make_fitness_function
 from easplatting.genome import decode
 from easplatting.gs_loader import activate, load_scene, prune
 from easplatting.metrics import psnr_fast
-from easplatting.render import gaussian_contributions, render_views, select_indices
-from easplatting.thresholds import gene_stats, keep_mask, slider_bounds
+from easplatting.render import (
+    coverage_indices,
+    gaussian_contributions,
+    per_view_contributions,
+    render_views,
+    select_indices,
+)
+from easplatting.thresholds import _quantile, gene_stats, keep_mask, slider_bounds
 
 GENES = ["opacity", "scale", "anisotropy", "importance"]
 OFF = [0.0, 1.0, 1.0, 0.0]          # genome value where each gene removes nothing
@@ -38,25 +46,52 @@ def scene_paths(scene):
     return f"pretrained/nb/gaussian-splatting/mipnerf360/{scene}/point_cloud.ply", f"data/360_v2/{scene}", images
 
 
-def importance_scores(scene_name, scene, cams, train_idx):
-    """Per-Gaussian blend weight over all train views at half resolution; cached per scene."""
-    cache = Path("results/cache") / f"{scene_name}_importance.pt"
+def importance_scores(scene_name, scene, cams, train_idx, mode="sum"):
+    """Per-Gaussian importance over all train views at half resolution; cached per scene and mode.
+    sum: blend weight summed over views   max: the largest single-view blend weight
+    density: the largest per pixel weight (blend weight / footprint area)
+    lg: LightGaussian-style hits x opacity x volume (a baseline score)
+    learned: gradient learned keep gates (see scores.py)   fisher: photo loss sensitivity (see scores.py)
+    """
+    suffix = "" if mode == "sum" else f"_{mode}"
+    cache = Path("results/cache") / f"{scene_name}_importance{suffix}.pt"
     if cache.exists():
         return torch.load(cache, map_location=scene["means"].device)
-    w = gaussian_contributions(scene, cams.subset(train_idx).scaled(0.5), batch_size=4)["blend_weight"]
+    views = cams.subset(train_idx).scaled(0.5)
+
+    if mode == "sum":
+        score = gaussian_contributions(scene, views, batch_size=4)["blend_weight"]
+    elif mode == "lg":
+        hits = gaussian_contributions(scene, views, batch_size=4)["visible_views"]
+        volume = scene["scales"].prod(dim=-1)
+        volume = (volume / _quantile(volume, 0.9)).clamp(max=1) ** 0.1
+        score = hits * scene["opacities"] * volume
+    elif mode in ("learned", "fisher"):
+        from easplatting.scores import fisher_scores, learned_gates, load_photos
+
+        # a spread of 48 train views keeps these two affordable
+        views = views.subset(np.linspace(0, len(views) - 1, min(48, len(views))).astype(int))
+        if mode == "learned":
+            score = learned_gates(scene, views, render_views(scene, views))
+        else:
+            score = fisher_scores(scene, views, load_photos(views, scene["means"].device))
+    else:
+        score = per_view_contributions(scene, views)[
+            {"max": "max_weight", "density": "max_density"}[mode]
+        ]
     cache.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(w.cpu(), cache)
-    return w
+    torch.save(score.cpu(), cache)
+    return score
 
 
-def setup_scene(scene_name, genes):
+def setup_scene(scene_name, genes, importance="sum"):
     """Load the scene + cameras and build the gene statistics and bounds (4 genes also computes/loads importance)."""
     scene_path, cameras_path, images = scene_paths(scene_name)
     scene = activate(load_scene(scene_path, device="cuda"))
     cams = load_cameras(cameras_path, images=images)
     train_idx, test_idx = select_indices(len(cams), "train"), select_indices(len(cams), "test")
-    importance = importance_scores(scene_name, scene, cams, train_idx) if genes == 4 else None
-    stats = gene_stats(scene, importance.cuda() if importance is not None else None)
+    scores = importance_scores(scene_name, scene, cams, train_idx, importance) if genes == 4 else None
+    stats = gene_stats(scene, scores.cuda() if scores is not None else None)
     b = slider_bounds(stats)
     return dict(scene=scene, cams=cams, stats=stats, train_idx=train_idx, test_idx=test_idx,
                 bounds=[b["min_opacity"], b["max_scale"], b["max_anisotropy"]])
@@ -86,11 +121,51 @@ def run_random(fit, n, args):
         fit(np.random.rand(n))
 
 
-def run_sweep(fit, n, gene, points):
+def run_sweep(fit, n, gene, points, refine=0):
     for g in np.linspace(0, 1, points):
         genome = np.array(OFF[:n])
         genome[gene] = g
         fit(genome)
+    refine_sweep(fit, n, gene, points, refine)
+
+
+def refine_sweep(fit, n, gene, points, steps):
+    # bisect between the best feasible sweep point and its neighbour that prunes more
+    if steps == 0:
+        return
+    feasible = [row for row in fit.rows if row["fitness"] >= 0]
+    if not feasible:
+        return
+    low = max(feasible, key=lambda row: row["fitness"])["genome"][gene]
+    direction = 1 if GENES[gene] in ("opacity", "importance") else -1
+    high = min(max(low + direction / (points - 1), 0), 1)
+    for _ in range(steps):
+        middle = (low + high) / 2
+        genome = np.array(OFF[:n])
+        genome[gene] = middle
+        if fit(genome)[0] >= 0:
+            low = middle
+        else:
+            high = middle
+
+
+def run_cmaes(fit, n, args):
+    population_size = 32
+    cma_es(
+        fitness_function=fit,
+        total_generations=(args.parents + args.children * args.generations)
+        // population_size,
+        population_size=population_size,
+        genome_length=n,
+    )
+
+
+def tau_from_loss(views, baselines, allowed_loss, margin=2.0):
+    # PSNR vs the unpruned render that costs about allowed_loss dB against the photos
+    W, H = views.size
+    photos = torch.stack([load_image(path, size=(W, H)) for path in views.image_paths])
+    model_psnr = psnr_fast(baselines, photos.to(baselines.device)).mean().item()
+    return model_psnr - 10 * np.log10(10 ** (allowed_loss / 10) - 1) + margin
 
 
 def view_psnrs(scene, stats, bounds, genome, views, baselines):
@@ -117,18 +192,32 @@ def main():
     ap.add_argument("--generations", type=int, default=10)
     ap.add_argument("--mutation", type=float, default=0.1)
     ap.add_argument("--sweep-points", type=int, default=64)
+    ap.add_argument("--sweep-refine", type=int, default=0, help="bisection steps after each 1-D sweep (0 = off)")
+    ap.add_argument("--importance", default="sum", choices=["sum", "max", "density", "lg", "learned", "fisher"], help="importance score of the 4th gene")
+    ap.add_argument("--view-select", default="even", choices=["even", "coverage"], help="how the fitness views are picked")
+    ap.add_argument("--allowed-loss", type=float, default=None, help="derive tau from this allowed real loss (dB) vs the photos")
     ap.add_argument("--out", default=None, help="default results/<scene>_<genes>g")
     ap.add_argument("--publish-images", action="store_true", help="also commit-ready copy of the full-resolution images (~17 MB) in figures/")
     args = ap.parse_args()
     n = args.genes
     tag = (f"_v{args.views}" if args.views != 8 else "") + (f"_w{args.worst_tau:g}" if args.worst_tau else "")
+    tag += (f"_i{args.importance}" if args.importance != "sum" else "") + ("_cov" if args.view_select == "coverage" else "")
+    tag += f"_L{args.allowed_loss:g}" if args.allowed_loss else ""
     out = Path(args.out or f"results/{args.scene}_{n}g{tag}")
     out.mkdir(parents=True, exist_ok=True)
 
-    ctx = setup_scene(args.scene, n)
+    ctx = setup_scene(args.scene, n, args.importance)
     scene, cams, stats, bounds, train_idx, test_idx = (ctx[k] for k in ("scene", "cams", "stats", "bounds", "train_idx", "test_idx"))
-    views = cams.subset(select_indices(len(cams), "train", k=args.views)).scaled(0.5)   # fixed fitness views, half resolution
-    fitness_function = make_fitness_function(scene, stats, bounds, views, render_views(scene, views), args.tau, args.worst_tau)
+    if args.view_select == "coverage":
+        view_idx = coverage_indices(cams, train_idx, args.views)
+    else:
+        view_idx = select_indices(len(cams), "train", k=args.views)
+    views = cams.subset(view_idx).scaled(0.5)   # fixed fitness views, half resolution
+    baselines = render_views(scene, views)
+    if args.allowed_loss:
+        args.tau = round(tau_from_loss(views, baselines, args.allowed_loss), 2)
+        print(f"tau {args.tau} dB = allowed real loss {args.allowed_loss} dB vs the photos", flush=True)
+    fitness_function = make_fitness_function(scene, stats, bounds, views, baselines, args.tau, args.worst_tau)
     # held-out diagnostics for each run's best genome: all train views (half res) and the test views (full res)
     all_train, test = cams.subset(train_idx).scaled(0.5), cams.subset(test_idx)
     all_train_base, test_base = render_views(scene, all_train, batch_size=4), render_views(scene, test, batch_size=4)
@@ -149,8 +238,10 @@ def main():
             run_ga(fit, n, args)
         elif method == "random":
             run_random(fit, n, args)
+        elif method == "cmaes":
+            run_cmaes(fit, n, args)
         else:
-            run_sweep(fit, n, GENES.index(method[len("sweep_"):]), args.sweep_points)
+            run_sweep(fit, n, GENES.index(method[len("sweep_"):]), args.sweep_points, args.sweep_refine)
         best = best_row(fit.rows)
         feasible = best["fitness"] >= 0
         s = dict(method=method, seed=seed, evals=len(fit.rows), seconds=round(time.perf_counter() - t0, 1), feasible=feasible,

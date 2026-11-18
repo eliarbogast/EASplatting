@@ -42,3 +42,28 @@ def make_fitness_function(scene, stats, bounds, cameras, baselines, tau, worst_t
             return 1.0 - kept, kept, psnr
         return -1000.0 - shortfall, kept, psnr # infeasible: always worse than feasible
     return fitness_function
+
+
+def make_objective_function(scene, stats, bounds, cameras, baselines):
+    """ returns objective_function(genome) -> (kept, mean PSNR, worst PSNR, share)
+        no constraint: the raw size and quality of a genome, for fronts and archives
+        share: fraction of the removed Gaussians that the importance gene removes
+    """
+
+    def objective_function(genome):
+        thresholds = decode(genome, bounds)
+        mask = keep_mask(stats, *thresholds)
+        kept = mask.sum().item() / mask.numel()
+        if mask.sum() < 1000:  # degenerate, skip rendering
+            return kept, 0.0, 0.0, 0.0
+        rendered = render_views(prune(scene, mask), cameras)
+        views = psnr_fast(rendered, baselines, max_db=60)
+
+        share = 0.0
+        if len(thresholds) > 3 and thresholds[3] > 0:
+            removed = ~mask
+            by_importance = (stats["importance"] < thresholds[3]) & removed
+            share = by_importance.sum().item() / max(removed.sum().item(), 1)
+        return kept, views.mean().item(), views.min().item(), share
+
+    return objective_function

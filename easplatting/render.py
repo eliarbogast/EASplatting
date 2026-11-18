@@ -174,6 +174,55 @@ def gaussian_contributions(splats, cams: Cameras, indices=None, *, batch_size=4,
     return dict(visible_views=visible, blend_weight=ones.grad[:, 0].detach())
 
 
+def per_view_contributions(splats, cams, indices=None, near=0.01, far=1e10):
+    # one backward pass per view, so every view's blend weight is known on its own
+    # returns the sum over views, the largest single view, the largest per pixel
+    # weight (blend weight / footprint area) and the number of views seen in
+    indices = list(range(len(cams))) if indices is None else list(indices)
+    sub = cams.subset(indices)
+    W, H = sub.size
+    device = splats["means"].device
+    N = splats["means"].shape[0]
+    viewmats, Ks = sub.viewmats.to(device), sub.Ks.to(device)
+    detached = {k: (v.detach() if torch.is_tensor(v) else v) for k, v in splats.items()}
+
+    total = torch.zeros(N, device=device)
+    largest = torch.zeros(N, device=device)
+    densest = torch.zeros(N, device=device)
+    visible = torch.zeros(N, dtype=torch.long, device=device)
+    for i in range(len(indices)):
+        ones = torch.ones(N, 1, device=device, requires_grad=True)
+        image, _, meta = _rasterize(
+            detached,
+            viewmats[i : i + 1],
+            Ks[i : i + 1],
+            W,
+            H,
+            colors=ones,
+            sh_degree=None,
+            near=near,
+            far=far,
+            packed=False,
+        )
+        image.sum().backward()
+        weight = ones.grad[:, 0]
+        radii = meta["radii"][0]
+        radii = radii[:, None] if radii.ndim == 1 else radii
+        area = radii.float().prod(dim=-1).clamp(min=1)
+
+        total += weight
+        largest = torch.maximum(largest, weight)
+        densest = torch.maximum(densest, weight / area)
+        visible += (radii > 0).all(dim=-1)
+
+    return dict(
+        blend_weight=total,
+        max_weight=largest,
+        max_density=densest,
+        visible_views=visible,
+    )
+
+
 # ------------------------------------------------------------------ timing
 
 
@@ -216,6 +265,25 @@ def select_indices(n, split="train", every=1, k=None):
     idx = {"train": train, "test": test, "all": list(range(n))}[split]
     idx = idx[::every]
     return evenly_spaced(idx, k) if k else idx
+
+
+def coverage_indices(cams, indices, k):
+    # k views that cover the camera positions and directions, farthest point first
+    indices = list(indices)
+    if k >= len(indices):
+        return indices
+    sub = cams.subset(indices)
+    centers = sub.centers()
+    forward = sub.viewmats[:, 2, :3]
+    features = torch.cat([centers / centers.std(), forward], dim=1)
+
+    chosen = [0]
+    distance = (features - features[0]).norm(dim=1)
+    while len(chosen) < k:
+        chosen.append(int(distance.argmax()))
+        to_new = (features - features[chosen[-1]]).norm(dim=1)
+        distance = torch.minimum(distance, to_new)
+    return [indices[i] for i in sorted(chosen)]
 
 
 # --------------------------------------------------------------------- CLI

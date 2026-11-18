@@ -40,6 +40,49 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 - Importance = per-Gaussian blend weight over all train views (`render.gaussian_contributions`), cached in `results/cache/`; the gene removes
   the lowest-percentile Gaussians. Runs are deterministic (a rerun reproduced every number).
 
+## Main runs, fronts and score comparison (2026-11-18; `max` importance, 32 views, mean >= 40 dB, worst >= 35 dB)
+% kept (lower is better), GA/random 3 seeds x 672 evals, sweeps refined (12 bisection steps). NOT like-for-like with B (see below).
+`runs/<scene>_4g_v32_w35_imax/`
+
+| Scene | GA | Random | CMA-ES | Importance sweep (refined) | Opacity sweep |
+|---|---|---|---|---|---|
+| bonsai | 54.4 | 67.8 | **51.0** | **51.0** | 73.1 |
+| counter | 44.6 | 55.4 | **42.7** | **42.7** | 64.1 |
+| garden | 56.5 | 64.2 | **52.1** | **52.1** | 65.8 |
+| bicycle | 54.7 | 75.8 | **52.3** | 52.2 | 73.1 |
+
+- **GA earns nothing over the simplest searcher here:** it beats random by 9-21 points but loses to CMA-ES and the refined 1-D sweep on every scene
+  (2-4 points), and those two agree, i.e. one basin that a single importance cutoff reaches. The earlier GA wins in B were sweep-resolution artifacts.
+- **Score screening (1-D sweeps, mean % kept):** `max` 50.0 < `density` 61.8 < `lg` 65.9 (`sum` 57.6). Max-over-views is the best of the cheap scores.
+- **Variants** (`_cov`, `_L0.5`) move results by 1-2 points (garden at 0.5 dB loss: ~47%); view choice is not the bottleneck.
+- **`learned` gates and `fisher` scores (`*_ilearned`, `*_ifisher`) did not work in this simple form:** the importance sweep is 100% kept (learned) or 82-93% (fisher),
+  worse than the opacity sweep, and GA/CMA-ES fall back to opacity (64-76%). Treat as a failed baseline, not evidence about the published scores;
+  likely causes: gate logits barely separate (300 steps, 48 views) and squared-gradient scores are dominated by a few heavy-tailed Gaussians. Not debugged.
+- **Fronts** (`runs/<scene>_front_v32_imax/`, hypervolume, higher is better; 3 seeds):
+
+| Scene | NSGA-II | MAP-Elites | Random | 1-D sweep |
+|---|---|---|---|---|
+| bonsai | 0.408 | 0.464 | 0.335 | **0.490** |
+| counter | 0.496 | 0.389 | 0.396 | **0.535** |
+| garden | 0.416 | 0.389 | 0.324 | **0.461** |
+| bicycle | 0.407 | 0.272 | 0.304 | **0.450** |
+
+  The importance sweep alone has the best front on all scenes; NSGA-II beats random everywhere, MAP-Elites only on bonsai/garden. MAP-Elites archives fill
+  90-96% of cells, so the descriptor space is easy to cover but the extra diversity does not buy quality.
+
+## Comparability of runs (read before comparing tables)
+- **Baseline tables A and B above** use the summed blend-weight importance, un-refined 64-point sweeps and no CMA-ES.
+- **Importance-score screening** (`*_4g_v32_w35_i<mode>`, 1-D sweeps only) keeps everything of B the same (32 views, mean >= 40 dB, worst >= 35 dB, same
+  scenes, cameras, fitness, 64-point sweeps) and changes only the score: `max`, `density`, `lg` (LightGaussian-style baseline). Directly comparable with B's
+  importance-sweep column (the unchanged opacity/scale/anisotropy sweeps reproduce B's numbers exactly, which is the check that nothing else drifted).
+- **Main runs with the chosen score** (`--methods ga,random,cmaes,sweep --sweep-refine 12`) are NOT like-for-like with B: they add CMA-ES, refine the sweeps
+  (12 bisection steps, so sweep numbers drop a little), and use the new score, all at once. We did not rerun B's old score with the refined sweeps and CMA-ES
+  (decided 2026-11-18) so those three changes cannot be separated.
+- **Variant runs** (`_cov` = fitness views chosen by camera coverage, `_L0.5` = tau derived from an allowed real loss of 0.5 dB vs the photos) change one
+  fitness setting each, with the main runs' searchers.
+- **Fronts** (`*_front_*`) are a different experiment: no constraint, quality = worst fitness-view PSNR, judged by hypervolume (see the section below), so
+  their numbers cannot be compared with the constrained % kept tables except by reading a front at a given quality.
+
 ## Earlier result: 3 genes, 8 views (2026-11-13; scratch scripts, not reproducible from the repo)
 % kept at 40 dB, GA / random / grid 9^3-12^3 / 1-D opacity sweep: bonsai 71.5 / 74.3 / 71.3-70.5 / **70.6**; counter 65.7 / 70.1 / 71.3-70.2 / **65.3**;
 garden 66.4 / 72.6 / 75.0-69.9 / **65.6**; bicycle 74.2 / 77.7 / 83.1-77.4 / **74.1**. With three threshold genes a 64-eval opacity sweep

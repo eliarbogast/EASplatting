@@ -1,0 +1,124 @@
+{
+ "args": {
+  "scene": "garden",
+  "genes": 4,
+  "methods": "sweep",
+  "seeds": 3,
+  "tau": 40.0,
+  "views": 32,
+  "worst_tau": 35.0,
+  "parents": 32,
+  "children": 64,
+  "generations": 10,
+  "mutation": 0.1,
+  "sweep_points": 64,
+  "sweep_refine": 0,
+  "importance": "lg",
+  "view_select": "even",
+  "allowed_loss": null,
+  "out": null,
+  "publish_images": false
+ },
+ "runs": [
+  {
+   "method": "sweep_opacity",
+   "seed": 0,
+   "evals": 64,
+   "seconds": 9.8,
+   "feasible": true,
+   "genome": [
+    0.57143,
+    1.0,
+    1.0,
+    0.0
+   ],
+   "kept": 0.6719548314806337,
+   "fit_psnr": 40.74811553955078,
+   "train_psnr": 40.744407653808594,
+   "train_worst": 38.83907699584961,
+   "test_psnr": 41.095947265625,
+   "test_worst": 39.08007049560547,
+   "thresholds": [
+    0.032,
+    Infinity,
+    Infinity,
+    0.0
+   ]
+  },
+  {
+   "method": "sweep_scale",
+   "seed": 0,
+   "evals": 64,
+   "seconds": 12.0,
+   "feasible": true,
+   "genome": [
+    0.0,
+    0.57143,
+    1.0,
+    0.0
+   ],
+   "kept": 0.9991418596229922,
+   "fit_psnr": 41.268455505371094,
+   "train_psnr": 41.104576110839844,
+   "train_worst": 34.70331573486328,
+   "test_psnr": 40.14828109741211,
+   "test_worst": 34.54517364501953,
+   "thresholds": [
+    0.0,
+    0.3619,
+    Infinity,
+    0.0
+   ]
+  },
+  {
+   "method": "sweep_anisotropy",
+   "seed": 0,
+   "evals": 64,
+   "seconds": 7.5,
+   "feasible": true,
+   "genome": [
+    0.0,
+    1.0,
+    0.93651,
+    0.0
+   ],
+   "kept": 0.9977393535251395,
+   "fit_psnr": 40.90711975097656,
+   "train_psnr": 40.768585205078125,
+   "train_worst": 35.2745246887207,
+   "test_psnr": 40.693870544433594,
+   "test_worst": 36.05034637451172,
+   "thresholds": [
+    0.0,
+    Infinity,
+    89600.0,
+    0.0
+   ]
+  },
+  {
+   "method": "sweep_importance",
+   "seed": 0,
+   "evals": 64,
+   "seconds": 7.8,
+   "feasible": true,
+   "genome": [
+    0.0,
+    1.0,
+    1.0,
+    0.33333
+   ],
+   "kept": 0.6666666097306013,
+   "fit_psnr": 41.43510437011719,
+   "train_psnr": 41.316219329833984,
+   "train_worst": 34.702945709228516,
+   "test_psnr": 41.7968864440918,
+   "test_worst": 34.22429275512695,
+   "thresholds": [
+    0.0,
+    Infinity,
+    Infinity,
+    0.3333
+   ]
+  }
+ ]
+}

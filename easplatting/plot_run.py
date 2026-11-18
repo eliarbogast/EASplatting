@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 SURFACE, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 BLUE, ORANGE, AQUA, GRAY = "#2a78d6", "#eb6834", "#1baf7a", "#8a8984"
 COLOR = {"ga": BLUE, "random": ORANGE, "sweep_importance": AQUA}
-LABEL = {"ga": "GA", "random": "random", "sweep_importance": "importance sweep", "sweep_opacity": "opacity sweep",
+LABEL = {"ga": "GA", "random": "random", "cmaes": "CMA-ES", "sweep_importance": "importance sweep", "sweep_opacity": "opacity sweep",
          "sweep_scale": "scale sweep", "sweep_anisotropy": "anisotropy sweep"}
 ORDER = list(LABEL)
 
@@ -59,7 +59,11 @@ def load_run(run_dir):
 
 def setting_label(args):
     views, worst = args.get("views", 8), args.get("worst_tau")
-    return f"{views} views, mean >= {args['tau']:g} dB" + (f", worst >= {worst:g} dB" if worst else "")
+    loss = args.get("allowed_loss")
+    goal = f"real loss <= {loss:g} dB" if loss else f"mean >= {args.get('tau') or 0:g} dB"
+    label = f"{views} views, {goal}" + (f", worst >= {worst:g} dB" if worst else "")
+    label += ", coverage views" if args.get("view_select") == "coverage" else ""
+    return label + (f", {args['importance']} importance" if args.get("importance", "sum") != "sum" else "")
 
 
 def best_so_far(rows):
@@ -88,12 +92,12 @@ def plot_run(run_dir, out=None):
     _style(a, "A  Best feasible % kept vs evaluations (lower is better)")
     for (m, s), rs in by.items():
         y = best_so_far(rs)
-        if m in ("ga", "random"):
+        if m in ("ga", "random", "cmaes"):
             a.plot(np.arange(len(y)), y, color=_color(m), lw=1.6, alpha=0.9)
         elif m in ("sweep_importance", "sweep_opacity") and not np.isnan(y[-1]):
             a.axhline(y[-1], color=_color(m), lw=1.2, ls="--")
             a.text(1, y[-1] + 0.8, f"{LABEL[m]} {y[-1]:.1f}", color=INK2, fontsize=8, ha="right", va="bottom", transform=a.get_yaxis_transform())
-    for m in ("ga", "random"):
+    for m in ("ga", "random", "cmaes"):
         if any(k[0] == m for k in by):
             ys = [best_so_far(rs) for (mm, _), rs in by.items() if mm == m]
             end = np.nanmean([y[-1] for y in ys])
@@ -121,8 +125,8 @@ def plot_run(run_dir, out=None):
 
     # C / D: best genome of each run, same rows
     runs = sorted(runs, key=lambda r: (ORDER.index(r["method"]) if r["method"] in ORDER else 99, r["seed"]))
-    runs = [r for r in runs if r["method"] in ("ga", "random", "sweep_importance", "sweep_opacity")] or runs
-    names = [f"{LABEL.get(r['method'], r['method'])}" + (f" s{r['seed']}" if r["method"] in ("ga", "random") else "") for r in runs]
+    runs = [r for r in runs if r["method"] in ("ga", "random", "cmaes", "sweep_importance", "sweep_opacity")] or runs
+    names = [f"{LABEL.get(r['method'], r['method'])}" + (f" s{r['seed']}" if r["method"] in ("ga", "random", "cmaes") else "") for r in runs]
     y = np.arange(len(runs))[::-1]
     _style(c, "C  Best genome of each run: % kept")
     c.barh(y, [100 * r["kept"] for r in runs], color=[_color(r["method"]) for r in runs], height=0.62)

@@ -23,6 +23,9 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
   `fitness.py` (`Individual`, feasibility-first `make_fitness_function`), `ea.py` (`evolutionary_algorithm`: mutation +
   tournament selection, elitism, no crossover; keep its comments short), `experiment.py` (`python -m easplatting.experiment`:
   GA / random / 1-D sweeps on one scene, JSONL log per evaluation, summary with held-out test PSNR)
+- `easplatting/nsga2.py` (NSGA-II + hypervolume helpers), `map_elites.py`, `cmaes.py`: the other searchers, same style and interface
+  idea as `ea.py` (plain functions returning arrays over time). `front.py` (`python -m easplatting.front`) runs NSGA-II / MAP-Elites /
+  random / sweeps on the size-quality plane and `plot_front.py` draws `front.png`
 - `easplatting/plot_run.py` standard PNG per run + `compare.png`; `experiment.py` calls `publish()` so every run lands in `figures/`
 - `easplatting/strip.py` render strip per run (unpruned vs best genomes, error maps, 4x zoom of the worst spot; GPU), `renders.jpg` + lossless full-res `images/` (always in `results/<run>/`), published to `figures/`
 - `easplatting/evaluate.py` end-to-end check: scene + cameras -> renders -> metrics -> `report.json`
@@ -39,6 +42,8 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
 - `docs/archive/` history only (bring-up results, VACC notes, first EA test); don't update it
 
 ## Conventions that must not drift
+- Code style for algorithm code: match `ea.py` (black formatting, 88 columns, one argument per line when wrapped, trailing commas,
+  short lowercase comments for each step such as `# the assessment procedure`, no type hints). Keep implementations simple.
 - Scene dicts hold RAW params: log scales, logit opacity, unnormalized quats, SH split
   `sh0 (N,1,3)` / `shN (N,K,3)`. Call `activate()` before thresholding or rendering;
   genes threshold ACTIVATED values (sigmoid opacity, exp scale).

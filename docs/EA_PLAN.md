@@ -26,14 +26,13 @@ JSONL row per evaluation; held-out PSNRs per best genome; a standard figure per 
 - **Fitness reference:** the unpruned renders (cached by `evaluate --cache-baselines`), not the photos; final tables
   report both. Evolve on train views, report on test views.
 
-**Next steps** (in order)
-1. **Pareto front** (NSGA-II over opacity / scale / importance; hypervolume vs the sweeps' fronts). A single constrained
-   point is what a sweep does well; the front is where an EA can still win.
-2. **Finer / adaptive 1-D sweeps as the baseline**: 64 points overshoot a sharp feasibility edge (fit PSNR 46-50 dB at
-   the best sweep point), which flatters the GA on counter and garden. Re-check before claiming a GA win.
-3. **Transfer the floor to held-out views**: garden's worst test view is still ~25 dB with a 32-view floor. Try views
-   chosen for coverage (pose clustering) instead of evenly spaced, and an allowed-real-loss constraint per scene.
-4. Baselines: LightGaussian-style percentile pruning at equal count, CMA-ES; optional fine-tuning of finals only.
+**Next steps** (in order; steps 1-3 of the old list are done, see `figures/README.md`)
+1. **Make the search problem harder, where a sweep cannot follow:** with 4 genes the GA loses to CMA-ES and a refined sweep (one basin). Evolve the
+   importance score itself (weights over per-Gaussian features) or per-region thresholds; only then is "GA earns its place" testable.
+2. **Fix the learned / fisher score baselines** (`easplatting/scores.py`): both came out worse than opacity alone. Check gate logit spread, more steps,
+   log-transform the Fisher score. Needed for an honest comparison with published scores.
+3. **Fine-tuning of finals only** and byte-size objective (SH-degree gene) for comparison with LightGaussian-style numbers.
+4. **Generalization claim:** hold out scenes (tune on three, evaluate on the fourth with a fixed percentile ~0.5) plus an oracle-per-scene gap.
 
 **Other ideas (not started; one line each)**
 - *Evolve the importance score:* genome = weights over per-Gaussian features (opacity, volume, view count, blend weight,
