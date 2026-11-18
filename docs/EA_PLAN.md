@@ -4,17 +4,15 @@ Status, decisions, next steps, the compute budget, how to measure fitness, and t
 Eli + Areeb as we write the EA. "Lean" = a suggestion, not a decision. How to run things: [`RUNNING.md`](RUNNING.md).
 Background and fitness-design options: [`BACKGROUND.md`](BACKGROUND.md) sections 5-8.
 
-## Status and next steps (2026-11-17; findings: see "Findings so far and planned directions")
+## Status and next steps (2026-11-18; results: [`figures/README.md`](../figures/README.md))
 
 **Done and verified on a real GPU** (RTX 5070 Ti; results in [`RUNNING.md`](RUNNING.md) section 7): scene loading,
 cameras, rendering, metrics (match NerfBaselines and gsplat's own eval), the evaluation report, the interactive
 viewer, the threshold -> mask logic (`easplatting/thresholds.py`), data/setup/measurement scripts.
-**EA pipeline on `main`:** genome decoding (3 thresholds + optional importance-percentile gene), feasibility-first
-fitness (mean-PSNR floor, optional worst-view floor, `--views K`), a mutation + tournament GA, and
-`python -m easplatting.experiment` (GA vs random vs 1-D sweeps; JSONL row per evaluation; all-train / test / worst-view
-PSNR per best genome). 46 CPU tests. **Results:** the importance gene cuts kept % from 65-74 (opacity only) to 43-51 at
-40 dB, but those solutions hide badly damaged views; a robust fitness gives an honest 51-66%. See the two result
-sections below.
+**EA pipeline on `main`:** genome decoding (3 thresholds + optional importance-percentile gene), feasibility-first fitness (mean-PSNR
+floor, optional worst-view floor, `--views K`), a mutation + tournament GA, `python -m easplatting.experiment` (GA vs random vs 1-D sweeps;
+JSONL row per evaluation; held-out PSNRs per best genome; a standard figure per run in `figures/`). 47 CPU tests. **Results:** see
+`figures/README.md` (importance gene: 43-51% kept vs 65-74% for opacity alone, but only 51-66% once the worst view is constrained).
 
 **Decisions already made**
 - **Renderer: gsplat 1.5.3** (latest release; 1.6.0 on main is unreleased with a different trainer API). Batched
@@ -28,7 +26,7 @@ sections below.
 - **Fitness reference:** the unpruned renders (cached by `evaluate --cache-baselines`), not the photos; final tables
   report both. Evolve on train views, report on test views.
 
-**Next steps** (in order; the other three "planned directions" below still stand)
+**Next steps** (in order)
 1. **Pareto front** (NSGA-II over opacity / scale / importance; hypervolume vs the sweeps' fronts). A single constrained
    point is what a sweep does well; the front is where an EA can still win.
 2. **Finer / adaptive 1-D sweeps as the baseline**: 64 points overshoot a sharp feasibility edge (fit PSNR 46-50 dB at
@@ -49,122 +47,22 @@ sections below.
 - *Quality-diversity (MAP-Elites)* over (kept %, worst-view PSNR) instead of one constrained optimum.
 - *Importance on fitness views only*, or leave-views-out importance, to cut the train/test gap at its source.
 
-## Findings so far and planned directions (2026-11-13)
+## Planned directions (ordered by expected impact)
+Results so far are in [`figures/README.md`](../figures/README.md). Lesson of the first round: the EA only has room to matter where a
+1-D sweep cannot cover the search space.
 
-**Four-scene comparison** (bonsai, counter, garden, bicycle; NerfBaselines checkpoints; each validated against
-NerfBaselines' published metrics). Fitness as in `experiment.py`: minimise kept fraction s.t. PSNR >= 40 dB vs the
-unpruned render on 8 half-res train views. GA = 32 parents + 64 children x 10 generations (672 evals), 3 seeds;
-random search = same 672 evals; grids are deterministic; "1D opacity" = 64 evals with max-scale and anisotropy off.
+1. **Importance-score gene: done.** Cut kept % from 65-74 to 43-51 (mean-PSNR constraint); the GA did not beat an importance-only sweep.
+2. **Pareto front of size vs quality** (NSGA-II, or MAP-Elites over the compression pipeline) instead of one constrained point.
+   *Why:* one scalar constraint is easy for a sweep; a front is the headline plot and where an EA is a natural fit. *Test:* hypervolume of the
+   evolved front vs the front traced by the 1-D sweeps (a free frontier, so the baseline to beat) and vs LightGaussian-style percentile
+   pruning. Revisit Q1: cross-method comparison then needs hypervolume rather than final kept %.
+3. **Per-scene calibration of the quality floor.** State the constraint as an allowed real loss vs the photos (e.g. 0.5 dB) and derive the
+   vs-unpruned threshold per scene from G0 (see "How to measure fitness"), instead of a fixed 40 dB. *Why:* a fixed 40 dB meant different
+   real losses per scene, so kept % is not comparable across scenes or with papers. *Cost:* one G0 measurement per scene on the train views;
+   the rule-of-thumb formula runs 1.3-2x low, so validate it per scene.
 
-| Scene | GA mean (best) | Random | Grid 9^3 | Grid 12^3 | **1D opacity (64 evals)** | Best opacity threshold |
-|---|---|---|---|---|---|---|
-| bonsai | 71.5 (70.5) | 74.3 | 71.3 | 70.5 | **70.6** | 0.049 |
-| counter | 65.7 (64.2) | 70.1 | 71.3 | 70.2 | **65.3** | 0.074 |
-| garden | 66.4 (65.5) | 72.6 | 75.0 | 69.9 | **65.6** | 0.035 |
-| bicycle | 74.2 (74.1) | 77.7 | 83.1 | 77.4 | **74.1** | 0.019 |
-
-(% of Gaussians kept; lower is better. Held-out test-view PSNR vs unpruned was 40.2-41.9 dB for the GA bests.)
-
-What it says:
-- **With these three genes, a 1D opacity sweep does what the GA does** (matches or beats the GA mean on all four
-  scenes, with 64 evals instead of 672). The best solutions mostly turn max-scale and anisotropy off. The outdoor
-  scenes did not change this. The one hint of a gain from the scale gene is counter (GA bests 64.2-64.8% vs 65.3%,
-  about 1 point, 3 seeds), too small to call.
-- **The GA still beats random search by 3-6 points on every scene**, but random search is a weak baseline here: it
-  wastes slack (ends 2-8 dB above the floor on several seeds). The 3D grids lose to the 1D sweep because they spend
-  their budget on genes that do not matter (9 opacity values only).
-- **The real value found so far is per-scene calibration:** the best opacity threshold varies about 4x across scenes
-  (0.019 to 0.074), so one global threshold is infeasible on some scenes and wasteful on others. A 64-point sweep
-  gets it in a few seconds.
-- **The ceiling (65-74% kept at 40 dB vs unpruned, roughly 1 dB real loss vs the photos on bonsai) comes from the gene
-  set, not the search.** Published pruning methods report removing far more (roughly 60-90%, from memory, not
-  re-checked, and they usually use importance scores and/or fine-tuning).
-- **Caveats:** 3 seeds, 4 scenes (too few for a significance test), an untuned GA (mutation 0.1, pop 32+64), one fixed
-  tau. On bicycle the test views are easier than the fitness views (test PSNR ~1.7 dB above fit PSNR), so a fixed
-  40 dB floor is conservative there. Two grid-12 solutions land at 39.92 and 40.00 dB on the test views.
-- The comparison scripts were scratch (not in the repo) and ran with `gpu-run` on the 5070 Ti. Reimplement them as
-  `scripts/` tools when the experiment loop is built.
-
-**Planned directions (not implemented; ordered by expected impact).** All three follow from the result above: the
-EA only has room to matter where a sweep cannot cover the search space.
-
-1. **Importance-score gene.** One per-scene pass computes a per-Gaussian importance (e.g. accumulated
-   transmittance-weighted opacity or contribution over the train views; `render.py` already computes per-Gaussian
-   contributions); the gene is a threshold on its percentile, ANDed with the existing genes (Q5).
-   *Why:* it is where published methods get their gains, and it is the likeliest way to get below 65-74% kept.
-   *Test:* rerun the comparison above with 4 genes. *Success:* kept % clearly below the 1D-opacity numbers at the
-   same constraint AND the GA beating a 1D sweep over the importance gene alone. *Risk:* importance may also reduce
-   to one dominant gene, in which case the EA again adds little. Needs the one-off importance pass per scene.
-2. **Pareto front of size vs quality** (NSGA-II, or MAP-Elites over the compression pipeline) instead of one
-   constrained point. *Why:* one scalar constraint is easy for a sweep; a front is the headline plot and where an
-   EA is a natural fit. *Test:* hypervolume of the evolved front vs the front traced by the 1D opacity sweep (it
-   traces a frontier for free, so it is the baseline to beat) and vs LightGaussian-style percentile pruning.
-   Revisit Q1; the cross-method comparison then needs hypervolume rather than final kept %.
-3. **Per-scene calibration of the quality floor.** State the constraint as an allowed real loss vs the photos
-   (e.g. 0.5 dB) and derive the vs-unpruned threshold per scene from G0 (see "How to measure fitness"), instead of
-   a fixed 40 dB. *Why:* a fixed 40 dB meant different real losses per scene (bicycle's test views ended ~1.7 dB
-   above the fitness views), so kept % is not comparable across scenes or with papers. *Test:* check that real loss
-   vs the photos on the held-out views lands near the target on all four scenes. *Cost:* one G0 measurement per
-   scene on the train views; the rule-of-thumb formula runs 1.3-2x low, so validate it per scene.
-
-**Baselines to report from now on:** random search at the same budget, a 1D opacity sweep (64 evals), a 3-gene
-grid, percentile pruning at equal Gaussian count, and CMA-ES. If the GA cannot beat the 1D sweep in a richer
-space, the claim is about the search space, not the algorithm.
-
-## Importance gene, four scenes, mean-only fitness (2026-11-17)
-
-`python -m easplatting.experiment --scene <s> --genes 4 --seeds 3` (tau 40 dB vs unpruned on 8 half-res train views;
-GA 32 parents + 64 children x 10 generations = 672 evals; sweeps 64 evals per gene with the others off). The new gene
-keeps Gaussians whose importance percentile is at least p; importance = per-Gaussian blend weight over all train views
-(`render.gaussian_contributions`, cached in `results/cache/`).
-
-% of Gaussians kept (lower is better); GA = mean over 3 seeds (best); random = mean over 3 seeds:
-
-| Scene | GA, 4 genes | Random | **1-D importance sweep** | 1-D opacity sweep | GA, 3 genes (11-13) |
-|---|---|---|---|---|---|
-| bonsai | 45.4 (43.5) | 60.2 | **42.9** | 70.6 | 71.5 |
-| counter | 45.7 (42.6) | 52.6 | **42.9** | 65.3 | 65.7 |
-| garden | 55.2 (49.1) | 63.5 | **49.2** | 65.6 | 66.4 |
-| bicycle | 52.3 (50.2) | 75.4 | **50.8** | 74.1 | 74.2 |
-
-Held-out test PSNR vs unpruned (fitness constraint was 40 dB): GA bests 39.3-41.2 on bonsai, counter, bicycle; on garden
-**39.6 / 33.8 / 34.2**. The importance-only sweep on garden: fit 40.2, **test 33.7**.
-
-- **The gene is the big win and it is robust:** 43-51% kept vs 65-74% for the best opacity threshold, on all four
-  scenes, and the best importance cutoff is nearly the same everywhere (percentile 0.45-0.57).
-- **The GA never beats the importance-only sweep** (best seed per scene is 0.1-0.7 points under it; the means are 1.6-6
-  over). The evolved genomes do combine genes (opacity ~0.01-0.06 + max scale + importance ~0.5, anisotropy off), but
-  that buys at most ~1 point. The 1-D sweep covers the space.
-- **Importance solutions overfit the fitness views** more than opacity ones: gap (fit - test PSNR) is +0.4 to +1.3 dB
-  everywhere and +6.3 dB on garden, vs about zero or negative for opacity-only. Not yet diagnosed (see next steps).
-- Fixed in passing: `ea.py` deep-copied each parent, which also copied the fitness function (and any logger); it now copies shallowly.
-- 3 seeds, 4 scenes, fixed tau. **Superseded by the next section:** these kept % hide badly damaged views (garden's is not a valid 40 dB-on-test number).
-
-## Robust fitness, four scenes (2026-11-17)
-
-Why: the 8-view mean hid badly damaged views. Diagnosis (garden, importance solutions): mean PSNR over **all** train views
-is 40.4 dB (the 8 views are fine on average), but the **worst train view is 24 dB** and the worst test view 21 dB, so test
-mean falls to 33.7 dB. More views alone (32, mean only) did not help (test 33.9-34.5). What helped: 32 fitness views plus a
-**worst-view floor of 35 dB** (`--views 32 --worst-tau 35`).
-
-% kept at mean >= 40 dB and worst fitness view >= 35 dB (GA = mean over 3 seeds (best); sweep = 64 evals, 1 gene):
-
-| Scene | GA | Random | Importance sweep | Opacity sweep | Test PSNR, GA (worst view) |
-|---|---|---|---|---|---|
-| bonsai | 61.7 (52.2) | 67.6 | **50.8** | 73.9 | 40.7-44.8 (32-36) |
-| counter | **54.2 (52.4)** | 63.8 | 55.6 | 65.3 | 40.1-41.5 (34-35) |
-| garden | **58.6 (57.4)** | not run | 63.5 | 67.2 | 37.2-38.2 (24-25) |
-| bicycle | 66.2 (60.5) | 78.7 | **60.3** | 74.1 | 40.9-45.3 (34-37) |
-
-- **Honest cost of robustness:** 8-14 points more kept than the 8-view numbers (importance sweep 43/43/49/51 -> 51/56/64/60),
-  still 4-23 points better than opacity alone. The earlier 43-51% figures were not safe to report.
-- **GA vs sweep is now mixed:** the GA wins on counter and garden (by 1.4 and 4.9 mean), loses on bonsai and bicycle. Caveat:
-  the 64-point sweep overshoots the sharp feasible edge (best point sits at 46-50 dB mean), so a finer sweep may erase the
-  GA wins (next step 2). GA means are noisy (bonsai 52-74% across seeds): the thin feasible region needs more evals or a
-  better mutation size.
-- **The floor does not fully transfer:** garden's test worst view is still ~25 dB; elsewhere 32-37 dB. Importance is
-  the damaging gene (opacity-only solutions have test worst 37-39 dB on garden).
-- 3 seeds per method, one tau, one floor (35 dB, chosen from opacity solutions' worst views of ~37 dB; not tuned).
+**Baselines to report:** random search at the same budget, 1-D sweeps per gene (finer than 64 points), percentile pruning at equal Gaussian
+count, and CMA-ES. If the GA cannot beat the 1-D sweep in a richer space, the claim is about the search space, not the algorithm.
 
 ## Compute budget
 
@@ -278,6 +176,18 @@ full-resolution one at 0.998. Pruning damage is one kind (missing Gaussians), so
    badly damaged view, so consider also constraining the worst view (not measured yet).
 5. **Caveat:** one scene, one 8-view set, one gene family; re-run the script per scene before trusting the
    rule-of-thumb numbers elsewhere.
+
+**Fitness views in code** (`experiment.py`; `--views K` sets K, default 8, 32 for the robust setting):
+```python
+views = cams.subset(select_indices(len(cams), "train", k=K)).scaled(0.5)   # K evenly spaced train views, half resolution
+baselines = render_views(scene, views)                                    # unpruned render of the same views, once
+psnr = psnr_fast(render_views(prune(scene, mask), views), baselines, max_db=60)   # per view; mean (and min) feed the constraint
+```
+`Cameras.scaled(s)` scales focal lengths, principal point and image size, so gsplat renders natively at the smaller size. Both sides use
+the same resolution, so resolution effects cancel. Validated on bonsai (80 genomes, half-res vs full-res): Spearman 0.997, same 40 dB
+feasible/infeasible call for 98%, ~12 ms per evaluation. Guard rails: check the ranking on each new scene (Spearman >= 0.95 over ~50
+random genomes); report final numbers on held-out test views at full resolution (the experiment tool does); a mean over views hides one
+badly damaged view (see `figures/README.md`), so also constrain the worst; a min-scale gene would need a higher resolution.
 
 ## Decisions to make next (parked 2026-11-06)
 

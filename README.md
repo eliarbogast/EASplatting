@@ -25,7 +25,7 @@ python -m easplatting.viewer --scene pretrained/nb/gaussian-splatting/mipnerf360
     --cameras data/360_v2/bonsai --images images_2       # then open http://localhost:8080
 ```
 
-Datasets, checkpoints and results are downloaded or generated locally and are git-ignored.
+Datasets, checkpoints and `results/` are downloaded or generated locally and are git-ignored; `figures/` is tracked.
 
 ## Where to read what
 
@@ -33,9 +33,9 @@ Datasets, checkpoints and results are downloaded or generated locally and are gi
 |---|---|
 | Run, check or measure anything; use the viewer; run GPU jobs from Claude Code | [`docs/RUNNING.md`](docs/RUNNING.md) |
 | Know the plan, decisions made, open questions, compute budget, how to measure fitness | [`docs/EA_PLAN.md`](docs/EA_PLAN.md) |
-| See the first EA test run and how the low-res fitness views are rendered | [`docs/EA_TEST.md`](docs/EA_TEST.md) |
+| See results and figures (one plot per run, a comparison across runs, presentation notes) | [`figures/README.md`](figures/README.md) |
 | Look up background (metrics, fitness options, baselines, pitfalls) | [`docs/BACKGROUND.md`](docs/BACKGROUND.md) (long; reference) |
-| See the first real-GPU results | [`docs/archive/bring_up/`](docs/archive/bring_up/README.md) |
+| See the first real-GPU results, VACC notes, the first EA test | [`docs/archive/`](docs/archive/) |
 | Rules for Claude Code sessions | [`CLAUDE.md`](CLAUDE.md) |
 
 ## Layout
@@ -49,6 +49,7 @@ easplatting/           the code; run a tool with  python -m easplatting.<name>
   thresholds.py          pruning genes as threshold -> keep-mask logic
   genome.py, fitness.py  genome -> thresholds; feasibility-first fitness (render fitness views, PSNR vs unpruned)
   ea.py, experiment.py   minimal evolutionary algorithm (mutation + tournament selection); GA vs random vs sweeps on one scene
+  plot_run.py            one standard PNG per run + a comparison PNG, published into figures/
   evaluate.py            scene + cameras -> renders -> metrics -> report.json (with cross-checks)
   viewer.py              interactive threshold-pruning viewer (viser)
   export_gsplat_cameras.py   cameras in gsplat-trainer's normalized frame
@@ -58,4 +59,5 @@ scripts/               setup_local.sh, get_data.sh, train_gsplat.sh  (shell)
                        measure.py (cost of a fitness evaluation; what the metrics mean)
 tests/                 CPU tests with a fake gsplat (tests/fake_gsplat)
 docs/                  RUNNING.md, EA_PLAN.md, BACKGROUND.md, archive/
+figures/               TRACKED results: README.md (results summary), compare.png, runs/<run>.png + .json (written by experiment.py)
 ```

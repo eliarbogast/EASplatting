@@ -135,6 +135,7 @@ The `env` variables replace `conda activate` (they are what `~/miniforge3/envs/g
 Without `CUDA_HOME`, gsplat prints "No CUDA toolkit found" and fails with `'NoneType' object has no attribute
 'CameraModelType'`. In your own terminal just `conda activate gsprune`. CPU tests need no GPU:
 `~/miniforge3/envs/gsprune/bin/python -m pytest -q tests`. (Also saved in Claude's memory, `gpu-runs-easplatting`.)
+Every `experiment` run also publishes its plot into the tracked `figures/` (see `figures/README.md`); commit it with the run.
 Cluster (VACC) notes are archived in [`archive/vacc.md`](archive/vacc.md).
 
 ## Troubleshooting

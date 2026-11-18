@@ -23,6 +23,7 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
   `fitness.py` (`Individual`, feasibility-first `make_fitness_function`), `ea.py` (`evolutionary_algorithm`: mutation +
   tournament selection, elitism, no crossover; keep its comments short), `experiment.py` (`python -m easplatting.experiment`:
   GA / random / 1-D sweeps on one scene, JSONL log per evaluation, summary with held-out test PSNR)
+- `easplatting/plot_run.py` standard PNG per run + `compare.png`; `experiment.py` calls `publish()` so every run lands in `figures/`
 - `easplatting/evaluate.py` end-to-end check: scene + cameras -> renders -> metrics -> `report.json`
 - `easplatting/viewer.py` interactive viser viewer for threshold pruning
 - `easplatting/export_gsplat_cameras.py` cameras in gsplat-trainer's normalized frame
@@ -31,8 +32,10 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
   `--smoke-only` pre-warms gsplat, `--prefetch-weights` fetches LPIPS weights); `download.py` (replaces
   wget/curl/unzip; also range-extracts from remote zips); `measure.py` (`cost` feeds EA_PLAN's budget,
   `metrics` feeds its fitness assessment)
+- `figures/` TRACKED: `README.md` is the ONE results summary (tables, findings, presentation notes; update it after each new run, plans stay
+  in `docs/EA_PLAN.md`), `compare.png`, `runs/<run>.png|json`. Commit it with every run.
 - `tests/` CPU tests with a fake gsplat (`tests/fake_gsplat`)
-- `docs/archive/` history only (bring-up results, VACC notes); don't update it
+- `docs/archive/` history only (bring-up results, VACC notes, first EA test); don't update it
 
 ## Conventions that must not drift
 - Scene dicts hold RAW params: log scales, logit opacity, unnormalized quats, SH split
@@ -64,4 +67,4 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
 - Real rendering needs Linux + NVIDIA. Cloud sessions can't run gsplat: say so rather than
   claiming GPU results.
 - `data/`, `pretrained/`, `results/`, `ext/`, `.torch_extensions/` are git-ignored; never
-  commit datasets, scenes or renders.
+  commit datasets, scenes or renders (the result plots in `figures/` are the exception).

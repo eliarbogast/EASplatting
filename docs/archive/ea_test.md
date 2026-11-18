@@ -1,4 +1,6 @@
-# EA test run (first run, 2026-11-12; now `python -m easplatting.experiment`)
+# EA test run (first run, 2026-11-12; archived 2026-11-18)
+
+History only: superseded by `python -m easplatting.experiment`; results now live in [`figures/README.md`](../../figures/README.md). The fitness-view snippet moved to `docs/EA_PLAN.md` ("How to measure fitness").
 
 A first end-to-end run of the evolutionary search on bonsai, built on Areeb's draft. It checks that the loop
 works; it is not a result.

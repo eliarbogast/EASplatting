@@ -6,7 +6,9 @@ Methods (all minimise kept fraction subject to PSNR >= tau vs the unpruned rende
   ga           evolutionary_algorithm (ea.py), parents + children x generations evaluations
   random       the same number of uniform random genomes
   sweep_<gene> 1-D sweep of one gene with every other gene off (deterministic, run once)
-Output: results/<scene>_<genes>g/log.jsonl (every evaluation) and summary.json (best per run, held-out test PSNR).
+Output: results/<scene>_<genes>g[_v<views>][_w<floor>]/log.jsonl (every evaluation) and summary.json (best per run,
+held-out PSNRs), then plot_run.publish() copies run.png + summary.json into the tracked figures/runs/ and refreshes
+figures/compare.png: commit those with every run.
 """
 
 import argparse
@@ -161,7 +163,8 @@ def main():
     for method in dict.fromkeys(m for m, _ in runs):
         k = [100 * s["kept"] for s in summary if s["method"] == method and s["feasible"]]
         print(f"{method:>18}  {np.mean(k):5.1f}  (best {min(k):.1f}, {len(k)} feasible runs)" if k else f"{method:>18}  no feasible run")
-    print(f"wrote {out}/log.jsonl and summary.json")
+    from easplatting.plot_run import publish
+    print(f"wrote {out}/log.jsonl and summary.json; figures: {', '.join(str(p) for p in publish(out))}")
 
 
 if __name__ == "__main__":

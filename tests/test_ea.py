@@ -101,3 +101,22 @@ def test_fitness_worst_view_floor(raw_scene):
     all_off = np.array([0.0, 1.0, 1.0])
     assert make_fitness_function(scene, stats, bounds, cams, base, 40.0, worst_tau=50.0)(all_off)[0] == 0.0   # PSNR 60 on both views
     assert make_fitness_function(scene, stats, bounds, cams, base, 40.0, worst_tau=70.0)(all_off)[0] == -1000.0 - 10.0
+
+
+def test_plot_run_publish(tmp_path):
+    import json
+    from easplatting.plot_run import publish
+    run = tmp_path / "results" / "toy_4g"
+    run.mkdir(parents=True)
+    rows, runs = [], []
+    for method, seed in [("ga", 0), ("random", 0), ("sweep_importance", 0), ("sweep_opacity", 0)]:
+        for i in range(20):
+            k = 1 - i / 40
+            rows.append(dict(method=method, seed=seed, eval=i, genome=[0.5] * 4, fitness=1 - k, kept=k, psnr=60 - 30 * (1 - k) * 2, ms=1.0))
+        runs.append(dict(method=method, seed=seed, evals=20, seconds=1.0, feasible=True, genome=[0.5] * 4, kept=0.6, fit_psnr=41.0,
+                         train_psnr=40.5, train_worst=30.0, test_psnr=39.5, test_worst=28.0))
+    (run / "log.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    (run / "summary.json").write_text(json.dumps(dict(args=dict(scene="bonsai", genes=4, tau=40.0, views=8, worst_tau=None), runs=runs)))
+    png, compare = publish(run, tmp_path / "figures")
+    assert png.exists() and compare.exists() and (tmp_path / "figures" / "runs" / "toy_4g.json").exists()
+    assert (run / "run.png").stat().st_size > 10_000
