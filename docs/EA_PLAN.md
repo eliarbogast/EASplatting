@@ -1,67 +1,68 @@
 # EA plan
 
-Status, decisions, next steps, the compute budget, how to measure fitness, and the open design questions, for
-Eli + Areeb as we write the EA. "Lean" = a suggestion, not a decision. How to run things: [`RUNNING.md`](RUNNING.md).
-Background and fitness-design options: [`BACKGROUND.md`](BACKGROUND.md) sections 5-8.
+Status, decisions, next steps, the compute budget, how to measure fitness, and the questions still open, for
+Eli + Areeb. How to run things: [`RUNNING.md`](RUNNING.md). Results: [`figures/README.md`](../figures/README.md).
+Background and fitness-design options: [`BACKGROUND.md`](BACKGROUND.md) sections 5-8. The early open questions, the
+parked decisions and the first prototype are in [`archive/ea_plan_2026-11.md`](archive/ea_plan_2026-11.md).
 
-## Status and next steps (2026-11-18; results: [`figures/README.md`](../figures/README.md))
+## Status (2026-11-19)
 
-**Done and verified on a real GPU** (RTX 5070 Ti; results in [`RUNNING.md`](RUNNING.md) section 7): scene loading,
-cameras, rendering, metrics (match NerfBaselines and gsplat's own eval), the evaluation report, the interactive
-viewer, the threshold -> mask logic (`easplatting/thresholds.py`), data/setup/measurement scripts.
-**EA pipeline on `main`:** genome decoding (3 thresholds + optional importance-percentile gene), feasibility-first fitness (mean-PSNR
-floor, optional worst-view floor, `--views K`), a mutation + tournament GA, `python -m easplatting.experiment` (GA vs random vs 1-D sweeps;
-JSONL row per evaluation; held-out PSNRs per best genome; a standard figure per run in `figures/`). 47 CPU tests. **Results:** see
-`figures/README.md` (importance gene: 43-51% kept vs 65-74% for opacity alone, but only 51-66% once the worst view is constrained).
+**Built and verified.** On a real GPU (RTX 5070 Ti): scene loading, cameras, rendering, metrics (match NerfBaselines and gsplat's own
+eval), the evaluation report, the interactive viewer, the threshold -> mask logic (`thresholds.py`), data/setup/measurement scripts.
+**EA pipeline on `main`:**
+- genome decoding (3 thresholds + an importance-percentile gene, each with an explicit "off" zone) and feasibility-first fitness (mean-PSNR
+  floor, optional worst-view floor, `--views K`): `genome.py`, `fitness.py`;
+- searchers in one style and interface: mutation + tournament GA (`ea.py`), CMA-ES, NSGA-II, MAP-Elites, random search, 1-D sweeps with bisection
+  refinement; importance scores `sum`, `max`, `density`, `lg` (`experiment.importance_scores`, from `render.py`'s per-Gaussian contributions) and `learned`, `fisher` (`scores.py`);
+- tools: `experiment.py` (constrained % kept, one JSONL row per evaluation, held-out PSNRs per best genome), `front.py` (size-quality fronts,
+  hypervolume), `plot_run.py` / `plot_front.py` (figures), `strip.py` (renders), all published into `figures/`.
+CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `requirements.txt` must list every third-party import).
+**Results so far** (details and caveats in `figures/README.md`):
+- The importance gene is the big win: 43-51% kept (mean PSNR >= 40 dB) vs 65-74% for the best opacity threshold; once the worst view is
+  constrained (>= 35 dB) the honest number is 51-66%.
+- The EA does not earn its place yet: the GA beats random search by 9-21 points but loses to CMA-ES and the refined 1-D importance sweep on every
+  scene (one basin, reached by a single importance cutoff). NSGA-II and MAP-Elites lose to the importance sweep's own front.
+- The `learned` and `fisher` scores failed in this simple form (worse than opacity alone), so there is no honest comparison with published scores yet.
 
-**Decisions already made**
+## Decisions already made
 - **Renderer: gsplat 1.5.3** (latest release; 1.6.0 on main is unreleased with a different trainer API). Batched
   multi-camera forward renders from Python; a mask is just tensor indexing.
 - **Benchmark: NerfBaselines Mip-NeRF 360 protocol**: official `images_4` (outdoor) / `images_2` (indoor), llffhold-8
   test split (every 8th name-sorted camera), LPIPS-VGG on [-1,1]-rescaled inputs. Unpruned baseline = NerfBaselines'
   `gaussian-splatting` checkpoints (trained on the train split only, published per-scene metrics). Inria's own
   pretrained models may include test views, so use them only for quick tests.
-- **Dev scene: bonsai** (indoor, 1.25 M Gaussians); outdoor scenes run to several million.
-- **Tanks & Temples:** Inria's `tandt_db` (not NerfBaselines' T&T, which is preprocessed differently).
-- **Fitness reference:** the unpruned renders (cached by `evaluate --cache-baselines`), not the photos; final tables
-  report both. Evolve on train views, report on test views.
+- **Scenes:** bonsai and counter (indoor, ~1.2 M Gaussians), garden and bicycle (outdoor, several million). bonsai is the dev scene.
+  Tanks & Temples comes from Inria's `tandt_db` (not NerfBaselines' T&T, which is preprocessed differently).
+- **Fitness:** feasibility-first. Minimize the kept fraction subject to mean PSNR >= tau (default 40 dB) vs the unpruned renders on K fixed
+  half-res train views (8, or 32 for the robust setting), optionally also worst-view PSNR >= `--worst-tau`. Reference = the unpruned renders
+  (cached), not the photos; final numbers report both. Evolve on train views, report on test views.
+- **Genes:** opacity, max scale, max anisotropy, importance percentile; a gene is "off" in an explicit zone of its range, and a Gaussian is kept only
+  if every active gene passes. A gene's "off" must be exactly reachable (an earlier prototype that treated the top of the anisotropy range as "off"
+  silently removed 0.1% of Gaussians and capped quality at ~40 dB; see the archive).
+- **Size = Gaussian count** (bytes only matter once an SH-degree gene exists). **Budget = number of evaluations**; wall time is logged too.
+- **Importance:** per-Gaussian blend weight over the train views (`render.gaussian_contributions`), cached in `results/cache/`; `max` over views is
+  the default for the main runs.
+- **Baselines reported:** random search at equal budget, 1-D sweeps per gene (refined), CMA-ES, percentile pruning by the `lg` score.
+- **Accepted:** our LPIPS-VGG is 0.008 above NerfBaselines' (within tolerance).
 
-**Next steps** (in order; steps 1-3 of the old list are done, see `figures/README.md`)
-1. **Make the search problem harder, where a sweep cannot follow:** with 4 genes the GA loses to CMA-ES and a refined sweep (one basin). Evolve the
-   importance score itself (weights over per-Gaussian features) or per-region thresholds; only then is "GA earns its place" testable.
-2. **Fix the learned / fisher score baselines** (`easplatting/scores.py`): both came out worse than opacity alone. Check gate logit spread, more steps,
+## Next steps (in order)
+1. **Make the search problem harder, where a sweep cannot follow.** With 4 genes the GA loses to CMA-ES and a refined sweep (one basin). Evolve the
+   importance score itself (genome = weights over per-Gaussian features: opacity, volume, view count, blend weight, distance to the camera hull)
+   or per-region thresholds (depth shell / octree cell); only then is "the GA earns its place" testable.
+2. **Fix the `learned` / `fisher` score baselines** (`scores.py`): both came out worse than opacity alone. Check gate-logit spread, more steps,
    log-transform the Fisher score. Needed for an honest comparison with published scores.
-3. **Fine-tuning of finals only** and byte-size objective (SH-degree gene) for comparison with LightGaussian-style numbers.
-4. **Generalization claim:** hold out scenes (tune on three, evaluate on the fourth with a fixed percentile ~0.5) plus an oracle-per-scene gap.
+3. **Measure FPS of pruned scenes.** The speed claim is untested: so far we report Gaussian counts, not FPS.
+4. **Fine-tune finals only** and a byte-size objective (SH-degree gene) for comparison with LightGaussian-style numbers.
+5. **Generalization claim:** hold out scenes (tune on three, evaluate on the fourth with a fixed importance percentile ~0.5) plus an oracle-per-scene gap.
+6. **Final study design:** 20-30 seeds on the winning comparison (3 now), with the Mann-Whitney / Wilcoxon tests from `BACKGROUND.md` section 8.
 
-**Other ideas (not started; one line each)**
-- *Evolve the importance score:* genome = weights over per-Gaussian features (opacity, volume, view count, blend weight,
-  distance to camera hull); a high-dimensional space a sweep cannot cover, which is where an EA should matter.
-- *Spatial / per-region genes:* separate thresholds per depth shell or octree cell (background vs foreground).
-- *Per-view-aware importance:* score each Gaussian by its worst-view contribution (max over views, not the sum), which
-  targets the tail damage the mean hides.
-- *SH-degree cap gene:* drop higher SH bands (size in bytes, not count); needs the byte-size objective (Q2).
-- *Transfer:* does a genome (esp. the ~0.5 importance percentile) evolved on one scene work on another (Q13)?
-- *Multi-fidelity:* score all genomes on 4 views, re-score the top quarter on 32; keeps the robust fitness cheap.
-- *Quality-diversity (MAP-Elites)* over (kept %, worst-view PSNR) instead of one constrained optimum.
+**More ideas (not started)**
+- *Per-view-aware importance:* score each Gaussian by its worst-view contribution (max over views, not the sum), which targets the tail damage the mean hides.
 - *Importance on fitness views only*, or leave-views-out importance, to cut the train/test gap at its source.
-
-## Planned directions (ordered by expected impact)
-Results so far are in [`figures/README.md`](../figures/README.md). Lesson of the first round: the EA only has room to matter where a
-1-D sweep cannot cover the search space.
-
-1. **Importance-score gene: done.** Cut kept % from 65-74 to 43-51 (mean-PSNR constraint); the GA did not beat an importance-only sweep.
-2. **Pareto front of size vs quality** (NSGA-II, or MAP-Elites over the compression pipeline) instead of one constrained point.
-   *Why:* one scalar constraint is easy for a sweep; a front is the headline plot and where an EA is a natural fit. *Test:* hypervolume of the
-   evolved front vs the front traced by the 1-D sweeps (a free frontier, so the baseline to beat) and vs LightGaussian-style percentile
-   pruning. Revisit Q1: cross-method comparison then needs hypervolume rather than final kept %.
-3. **Per-scene calibration of the quality floor.** State the constraint as an allowed real loss vs the photos (e.g. 0.5 dB) and derive the
-   vs-unpruned threshold per scene from G0 (see "How to measure fitness"), instead of a fixed 40 dB. *Why:* a fixed 40 dB meant different
-   real losses per scene, so kept % is not comparable across scenes or with papers. *Cost:* one G0 measurement per scene on the train views;
-   the rule-of-thumb formula runs 1.3-2x low, so validate it per scene.
-
-**Baselines to report:** random search at the same budget, 1-D sweeps per gene (finer than 64 points), percentile pruning at equal Gaussian
-count, and CMA-ES. If the GA cannot beat the 1-D sweep in a richer space, the claim is about the search space, not the algorithm.
+- *Multi-fidelity:* score all genomes on 4 views, re-score the top quarter on 32; keeps the robust fitness cheap.
+- *Fitness cache* keyed on the (rounded) genome, so elites and duplicates are not re-rendered (not implemented).
+- *Transfer:* does a genome evolved on one scene work on another (the ~0.5 importance percentile is nearly the same everywhere).
+- *More scenes* for a paired EA-vs-baseline test: kitchen, stump, or our own T&T / Deep Blending splats trained on the train split.
 
 ## Compute budget
 
@@ -81,28 +82,15 @@ background, which is where scene-specific thresholds should matter most).
 | Views / resolution | 16 views = 2x cost; half res saves ~35%, quarter res ~45% (cost is per-Gaussian projection and sorting, not pixels) |
 | Metrics in the loop | PSNR +0.25 ms; SSIM +8 ms (+65%); LPIPS-alex +13 ms (2x); **LPIPS-VGG +194 ms (16x)**: keep it for the final eval |
 | Cheap vs full fitness | 4-16 views at 0.25-0.5 scale rank 40 random genomes with Spearman 0.995-0.998 vs 64 views at full res |
-| Outdoor scenes | not measured; estimate ~50-60 ms/eval at the ~5-6 M Gaussians the outdoor scenes have, from the linear scaling above |
+| Outdoor scenes | measured in the experiment runs (`seconds` in `summary.json`; a 672-eval GA run, 8 views): bonsai 5.9 s, bicycle 18.8 s, garden 28.2 s (~42 ms/eval); garden at 32 views 89 s (~130 ms/eval). Consistent with the linear scaling above |
 
-**What a throwaway prototype showed** (bonsai; pop 100 = 2 elites + 98 offspring per generation, tournament
-k=3, Gaussian mutation with sigma = 10% of each gene's range; fitness = kept fraction, feasibility-first, subject
-to >= 40 dB vs the unpruned render on 8 half-res train views; 4,020 evals = 50 s per run, 12.4 ms/eval):
-- All 3 GA seeds reach the same optimum: **70.5% of Gaussians kept at 40.0-40.1 dB** (right on the constraint).
-  They are within half a point of it by generation ~10 (~1,000 evals); the rest is polishing.
-- Random search with the same ~4,000 evals ends at 72.9 / 75.1 / 73.7% kept: **the GA wins by 2-5 points**, and
-  random search is still moving. Modest but real; on 3 smooth genes it is not a landslide.
-- Correction (2026-11-11): the first version of this prototype treated the top of the anisotropy range as "off".
-  It is the 99.9th percentile, so every genome silently removed 1,219 extreme needle-like Gaussians (0.1%) and
-  quality could never exceed ~40 dB. That produced a false "all runs infeasible" and a false "GA ~ random search /
-  need an importance gene". **A gene's "off" must be exactly reachable** (viewer: slider ends mean inf / 0;
-  prototype: outer 5% of the range decodes to "off"). The genome decoder must do the same.
-- What it does say about the 3 threshold genes on bonsai: they remove ~30% of Gaussians for ~1 dB real loss vs the
-  photos, and ~11% for free. Whether an importance-score gene reaches smaller sizes at equal quality is an open
-  question to test, not something this data shows.
+**What the first prototype showed** (bonsai, 3 genes; details in [`archive/ea_plan_2026-11.md`](archive/ea_plan_2026-11.md)): GA 70.5% kept at 40 dB,
+random search 73-75% at the same ~4,000 evaluations, ~12 ms per evaluation. The experiments since (`figures/README.md`) replace these numbers.
 
-**Budget** (from the above; evals/s ~ 1000 / (10 ms per M Gaussians x N + ~2 ms)): an indoor-scene run of
-10,000 evals is ~2 min, an outdoor-scene run ~8-10 min. Because the GA converges in ~1,000-3,000 evals,
-budget ~3,000 evals/run (indoor ~40 s, outdoor ~3 min). A study of 2 indoor + 2 outdoor scenes x 3 stochastic
-methods (GA, random, CMA-ES) x 30 seeds = 360 runs is ~10 GPU-hours at 3,000 evals, ~35 at 10,000.
+**Budget** (from the above; evals/s ~ 1000 / (10 ms per M Gaussians x N + ~2 ms)): an indoor-scene run of 10,000 evals is ~2 min, an outdoor-scene
+run ~8-10 min. Our runs use 672 evals each (pop 32 + 64 children x 10 generations); the GA converges in ~1,000-3,000 evals. A study of 2 indoor + 2 outdoor
+scenes x 3 stochastic methods (GA, random, CMA-ES) x 30 seeds = 360 runs is ~10 GPU-hours at 3,000 evals, ~35 at 10,000. With 32 views the cost per
+evaluation is ~4x the 8-view numbers above.
 
 **Making evaluations cheap (by expected impact)**
 1. Cheap fitness, full final eval: fixed 8-16 TRAIN views at reduced resolution while evolving;
@@ -111,7 +99,7 @@ methods (GA, random, CMA-ES) x 30 seeds = 360 runs is ~10 GPU-hours at 3,000 eva
 3. PSNR/MSE only in the loop (`metrics.psnr_fast` vs cached baselines); SSIM/LPIPS at final eval.
 4. Load + activate the scene once per process, cache baselines, run several seeds per process.
 5. All fitness views of an individual in one `render_views` call; tune `batch_size`.
-6. Fitness cache keyed on the (rounded) genome so elites/duplicates aren't re-rendered.
+6. Fitness cache keyed on the (rounded) genome so elites/duplicates aren't re-rendered (not implemented).
 7. Later: render several individuals per call by zeroing opacities (gsplat 1.5.3 culls opacity
    < 1/255 and accepts `opacities` of shape `[B, N]`). Memory-hungry, and since one process already
    saturates the GPU it only saves launch overhead; FPS must still be measured on an actually pruned scene.
@@ -167,13 +155,13 @@ full-resolution one at 0.998. Pruning damage is one kind (missing Gaussians), so
    count. 12 ms per evaluation; nothing else in the loop.
 2. **Objective:** feasibility-first: minimize kept fraction subject to U >= U_min, where U_min comes from an allowed
    real loss (e.g. 0.5 dB, `U_min = G0 - 10 log10(10^(L/10) - 1)` plus ~2 dB of margin). Sweep L for a quality-size
-   curve; NSGA-II would give that curve in one run (decision Q1 below).
+   curve (`--allowed-loss` derives tau this way); `front.py` (NSGA-II / MAP-Elites) gives the curve in one run.
 3. **Final report per solution** on the held-out test views at full res: PSNR/SSIM/LPIPS-vgg vs the photos *and*
    vs unpruned, kept %, bytes, FPS. The photos column is what papers report.
 4. **Guards:** floor the free region (the baseline "opacity 0.005 cull" already keeps 88% at ~92 dB); log the
    incumbent's test-view PSNR every ~10 generations (never used for selection); the mean over views can hide one
-   badly damaged view, so consider also constraining the worst view (not measured yet).
-5. **Caveat:** one scene, one 8-view set, one gene family; re-run the script per scene before trusting the
+   badly damaged view, so also constrain the worst view (`--worst-tau`; measured, see `figures/README.md`).
+5. **Caveat:** this assessment is bonsai only (one 8-view set, one gene family); re-run the script per scene before trusting the
    rule-of-thumb numbers elsewhere.
 
 **Fitness views in code** (`experiment.py`; `--views K` sets K, default 8, 32 for the robust setting):
@@ -188,110 +176,32 @@ feasible/infeasible call for 98%, ~12 ms per evaluation. Guard rails: check the 
 random genomes); report final numbers on held-out test views at full resolution (the experiment tool does); a mean over views hides one
 badly damaged view (see `figures/README.md`), so also constrain the worst; a min-scale gene would need a higher resolution.
 
-## Decisions to make next (parked 2026-11-06)
-
-Four questions block implementation of `genome.py` / `fitness.py`; we haven't answered them yet. Leans
-are mine. Full list of everything else is under "Open questions" below.
-
-1. **Fitness form (Q1).** (How to *measure* quality is settled above; this is about how to combine it with size.) (a) *Constrained, feasibility-first (lean):* minimize kept Gaussians subject to
-   PSNR-vs-unpruned >= tau; feasible always beats infeasible; one scalar, so GA vs random vs CMA-ES stats
-   stay simple; sweep tau for a quality-size curve. (b) *NSGA-II:* whole Pareto front in one run (pop 100
-   suits it), but cross-method comparison needs hypervolume. (c) *Weighted sum + lambda sweep:* simplest,
-   but the weight silently decides the trade-off (it did in the prototype).
-2. **Genes in the first version (Q4).** *Update 2026-11-13: the 3-threshold version is now tested and reduces to
-   an opacity threshold on all four scenes, so move the importance-score gene (b) up; see "Findings so far".*
-   (a) *3 thresholds first, importance score next (earlier lean):* opacity,
-   max scale, anisotropy already exist (`thresholds.keep_mask`). (b) Importance score from the start: likely
-   better compression, needs a per-scene importance pass first. (c) 3 genes + SH-degree cap: then size
-   must be measured in bytes.
-3. **Scenes (Q12).** (a) *Indoor first, outdoor after (lean):* bonsai + counter (~2 min per 10k-eval run),
-   then garden + bicycle (~8-10 min). (b) All four from the start (~3x compute up front). (c) Another set.
-4. **Fine-tuning after pruning (Q11).** (a) *Training-free loop, fine-tune chosen finals only (lean):*
-   ~1-1.5 min per solution, reported separately, for comparison with LP-3DGS / Speedy-Splat. (b) Strictly
-   training-free. (c) Fine-tune every final solution (~2x study cost).
-
-**Already settled by the 2026-11-06 measurements (object if you disagree):** 8 fitness views at half
-resolution (Q8; Spearman 0.998 vs full); budget by evaluation count, also report wall time (Q10); pop 100
-but ~20-30 generations with a convergence check (Q15; the GA converged by gen ~10); feasibility-first
-instead of a fixed penalty (Q3); size = Gaussian count, also report bytes (Q2); a Gaussian is kept only
-if all conditions pass (Q5); accept the 0.008 LPIPS gap (Q16).
-
 ## Open questions
+Most early questions were answered by the experiments; the list and answers are in [`archive/ea_plan_2026-11.md`](archive/ea_plan_2026-11.md).
+Still open:
+1. **Size in bytes?** Needs an SH-degree-cap gene and the byte-size objective (next step 4).
+2. **Fine-tune after pruning?** Strictly training-free is cheaper and cleaner; fine-tuning matches LP-3DGS / Speedy-Splat. *Lean:* prune-only in the loop,
+   optional fine-tune of the final solution, reported separately (~1-1.5 min per solution).
+3. **Transfer:** does a genome evolved on one scene work on another? Cheap to test, a stronger story than per-scene numbers.
+4. **Which comparison gets the 20-30 seeds** (next step 6), and is it fine to report that CMA-ES / a refined sweep match the GA on the current 4-gene space?
+5. **Fitness-floor values:** is 40 dB mean / 35 dB worst the right pair, or should every scene use `--allowed-loss`? (A fixed 40 dB means different real
+   losses per scene, so kept % is not comparable across scenes or with papers.)
+6. **Who owns what** (genome/fitness vs logging/plots vs run scripts).
 
-**Objective**
-1. **Fitness form?** Weighted sum (needs a λ sweep), constrained (minimize size s.t. ΔPSNR ≤ τ), or
-   NSGA-II. *Lean:* constrained for the main GA-vs-baselines comparison (one scalar, easy stats);
-   NSGA-II as an extension since its Pareto front is the headline plot anyway.
-2. **What is "size"?** Gaussian count, or bytes? They differ once an SH-degree-cap gene exists.
-3. **Infeasible genomes** (empty or near-empty mask, ΔPSNR way over τ): penalty, repair, or reject?
+## Feedback and visualization
+Everything hangs off one rule: **one JSONL row per evaluation** (`results/<run>/log.jsonl`); plots are post-processing.
 
-**Genome**
-4. **Which genes?** Notes §6.1 lists six. Start with opacity + max-scale (+ anisotropy)? The
-   importance-score gene needs a one-off per-scene pass; the SH cap changes the representation.
-5. **How do genes combine?** Keep = all conditions pass (AND) is the obvious reading; confirm.
-6. **Bounds from percentiles per scene, or fixed global bounds?** Per-scene bounds make "scene-specific
-   thresholds" partly an artifact of the bounds.
-7. **Max-scale hazard:** unbounded scenes (garden, bicycle) use huge Gaussians for background. Let the
-   EA discover this, or clamp the gene's range?
+**Done**
+- JSONL per evaluation, `summary.json` per run (best genome per run, held-out PSNRs), a terminal line per run and a mean-kept summary per method.
+- `plots.png` per run: convergence (A), the (% kept, PSNR) plane (B), best genomes (C), the same genomes re-measured on train / test / worst views (D);
+  `compare.png` across runs; `front.png` for the size-quality fronts.
+- `renders.jpg` + lossless `images/` per run: unpruned vs best genomes, error maps, zoom of the worst spot.
+- `viewer.py`: threshold sliders, kept count / size / FPS / view PSNR, pruned / unpruned / removed-only / error views. Next: load an evolved genome JSON into it.
 
-**Evaluation**
-8. **Fitness views:** how many (8? 16?), what resolution, fixed per run? Validate the shortcut with
-   ρ ≳ 0.95 vs full fitness (item 2 above) before trusting it.
-9. **Overfitting check:** log held-out test PSNR of the incumbent every K generations (never used
-   for selection)? Costs little, tells us if evolved thresholds overfit the fitness views.
-10. **Budget fairness:** equal number of evaluations, or equal wall time? Pruned individuals render
-    faster, so these differ.
-
-**Scope / experiments**
-11. **Fine-tune after pruning?** Strictly training-free is cheaper and cleaner; fine-tuning matches
-    LP-3DGS / Speedy-Splat. *Lean:* prune-only in the loop, optional fine-tune of the final solution.
-12. **Scenes:** which 3-4 Mip-NeRF 360 scenes (bonsai + counter indoor, garden/bicycle outdoor)? *Update
-    2026-11-13:* those four are downloaded and validated locally. For a paired EA-vs-baseline test, consider adding
-    kitchen, stump (and our own T&T/Deep Blending splats trained on the train split).
-13. **Per-scene vs transferable:** does a genome evolved on one scene work on another? Cheap to test
-    and a stronger story than per-scene numbers alone.
-14. **Baselines:** random search (same budget), LightGaussian-style percentile pruning, CMA-ES
-    (optional). With 3-6 smooth genes, random search may match the GA. Are we fine reporting that?
-    *Update 2026-11-13:* random search did not match the GA (3-6 points worse), but a 64-eval 1D opacity sweep did.
-    Add the 1D sweep and a grid to the baselines (see "Findings so far").
-15. **Seeds / pop / gens:** 20-30 seeds; pop 32 x 50 gens should be plenty. Any reason for more?
-
-**Housekeeping**
-16. Our LPIPS-VGG is 0.008 above NerfBaselines' (within tolerance). Worth chasing, or accept?
-17. Who owns what (genome/fitness vs. logging/plots vs. run scripts)?
-
-## Feedback and visualization ideas
-
-Everything below hangs off one rule from the notes: **one JSONL row per evaluation** (run id, seed,
-generation, genome, kept count, ΔPSNR, wall time, cache hit). Plots are then post-processing.
-
-**During a run**
-- **Terminal progress line** per generation: gen, best fitness, kept %, ΔPSNR, evals/s, ETA, GPU mem.
-- **TensorBoard** (already installed with gsplat's trainer deps): scalars live, plus a render strip
-  (GT | unpruned | best pruned | error) every K generations.
-- **`progress.png`** rewritten every N generations: best/median fitness vs evaluations, kept
-  fraction, and the population in the (size, ΔPSNR) plane coloured by generation.
-- **Gene trajectories**: per-gene population histogram or violin over generations; shows convergence
-  and which genes the EA actually uses.
-- **Health warnings**: empty-mask rate, fitness-cache hit rate, train-vs-test gap of the incumbent.
-
-**At the end of a run / study**
-- **Convergence curves**: best fitness vs evaluations, median ± IQR over seeds, GA vs random vs CMA-ES.
-- **Pareto plot**: kept fraction vs test PSNR, baselines (unpruned, opacity 0.005, LightGaussian-style)
-  as points, evolved solutions as a cloud/front.
-- **Fitness landscape slice**: grid-evaluate two genes (e.g. opacity x max-scale) on bonsai. Cheap,
-  and shows whether the landscape is smooth/monotone, which predicts whether the GA beats random.
-- **Thresholds on distributions**: opacity / scale histograms with evolved thresholds overlaid.
-- **"What got removed"**: render only the pruned-away Gaussians next to the kept scene, and a top-down
-  point plot coloured kept/removed. Most intuitive picture for a talk.
-- **Where it hurts**: per-test-view ΔPSNR bars, and camera poses coloured by ΔPSNR.
-- **Threshold sweep GIF**: orbit or fixed view while opacity threshold rises 0 -> 0.2. Good for slides.
-- **Single-page run report** (`summary.html`: config, curves, tables, image strips) generated per
-  run/study; can also be published as a shareable page.
-
-**Interactive**
-- **`viewer.py`** (done): threshold sliders, kept count / size / FPS / view PSNR, and views of
-  pruned, unpruned, removed-only and error. Next: load an evolved genome JSON into it.
-
-*Lean for a first pass:* JSONL logging + terminal line + `progress.png` + TensorBoard, then Pareto
-and convergence plots from the JSONL; landscape slice and removed-Gaussians render for the write-up.
+**Not done (ideas)**
+- TensorBoard scalars and `progress.png` rewritten every N generations; per-gene population histograms over generations; health warnings (empty-mask rate,
+  train-vs-test gap of the incumbent).
+- Fitness-landscape slice (grid over two genes); opacity / importance histograms with the evolved cutoffs overlaid.
+- "What got removed": render only the pruned-away Gaussians next to the kept scene, and a top-down kept/removed plot (the most intuitive picture for a talk).
+- Per-test-view PSNR bars and camera poses coloured by PSNR (the tail damage); a threshold-sweep GIF (opacity 0 -> 0.2).
+- A single-page `summary.html` per run or study.

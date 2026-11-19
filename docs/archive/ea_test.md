@@ -39,12 +39,12 @@ works; it is not a result.
 - Caveat: one seed, 5 generations, a population of 16. It shows the plumbing works, not how well the GA does.
   Diversity dropping from 0.23 to 0.04 in four generations says this population is small for a real run.
 - For scale: 40 dB vs the unpruned render is a real loss of roughly 0.8 dB PSNR vs the photos on bonsai
-  ([`EA_PLAN.md`](EA_PLAN.md), "How to measure fitness").
+  ([`EA_PLAN.md`](../EA_PLAN.md), "How to measure fitness").
 
 ## Follow-up (2026-11-13)
 A four-scene comparison (bonsai, counter, garden, bicycle) found that a 64-eval 1D opacity sweep matches this GA,
 because the best solutions turn max-scale and anisotropy off. Results and the planned next directions (importance-score
-gene, Pareto front, per-scene quality floor) are in [`EA_PLAN.md`](EA_PLAN.md), "Findings so far and planned directions".
+gene, Pareto front, per-scene quality floor) are in [`EA_PLAN.md`](../EA_PLAN.md), "Findings so far and planned directions".
 
 ## Rendering low-res views for the fitness
 ```python

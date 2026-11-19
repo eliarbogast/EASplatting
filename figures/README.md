@@ -35,7 +35,7 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 - **B is the honest number:** 8-14 points more kept than A; importance still beats opacity by 4-23 points. Floors do not fully transfer
   (garden's worst test view is ~25 dB).
 - **GA vs 1-D sweep:** in A the GA never beats the importance sweep; in B it wins on counter and garden (1.4 / 4.9 points) and loses
-  on bonsai and bicycle. The 64-point sweep overshoots the sharp feasible edge, so a finer sweep may erase those wins (EA_PLAN next step 2).
+  on bonsai and bicycle. The 64-point sweep overshoots the sharp feasible edge, so a finer sweep may erase those wins (it did: see the main runs below).
   The GA always beats random search at equal budget. GA means are noisy where the feasible region is thin (bonsai B: 52-74%).
 - Importance = per-Gaussian blend weight over all train views (`render.gaussian_contributions`), cached in `results/cache/`; the gene removes
   the lowest-percentile Gaussians. Runs are deterministic (a rerun reproduced every number).
@@ -80,7 +80,7 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
   (decided 2026-11-18) so those three changes cannot be separated.
 - **Variant runs** (`_cov` = fitness views chosen by camera coverage, `_L0.5` = tau derived from an allowed real loss of 0.5 dB vs the photos) change one
   fitness setting each, with the main runs' searchers.
-- **Fronts** (`*_front_*`) are a different experiment: no constraint, quality = worst fitness-view PSNR, judged by hypervolume (see the section below), so
+- **Fronts** (`*_front_*`) are a different experiment: no constraint, quality = worst fitness-view PSNR, judged by hypervolume (`python -m easplatting.front`; figure `runs/<scene>_front_*/front.png`), so
   their numbers cannot be compared with the constrained % kept tables except by reading a front at a given quality.
 
 ## Earlier result: 3 genes, 8 views (2026-11-13; scratch scripts, not reproducible from the repo)
@@ -109,12 +109,18 @@ A best feasible % kept vs evaluations (GA/random per seed, sweeps dashed) | B ev
 C best genome per run | D the same genomes re-measured: fitness views, all train views, test views, worst test view (dashed lines: mean constraint,
 worst-view floor). Colors: GA blue, random orange, importance sweep aqua, other sweeps gray. Run names: `<scene>_<genes>g[_v<views>][_w<floor>]`.
 
+## How to read `runs/<scene>_front_*/front.png`
+A size-quality fronts on the fitness views, every seed (higher and further left wins) | B hypervolume of the front found so far vs evaluations |
+C the best front of each method re-measured on the held-out test views | D the MAP-Elites archive (best quality per cell of kept % and importance share).
+Colors: NSGA-II blue, MAP-Elites aqua, random orange, sweeps gray.
+
 ## Presentation kit
 - **Story:** (1) prune pretrained 3DGS scenes with an evolved threshold genome, no retraining; (2) thresholds on opacity/scale/anisotropy
   barely beat a 1-D sweep (negative result); (3) an importance gene cuts the count by another ~25 points; (4) the mean-PSNR constraint hides
-  badly damaged views, so we constrain the worst view too; (5) honest numbers: 51-66% kept at 40 dB mean / 35 dB worst; (6) next: Pareto front,
-  evolved importance scores.
+  badly damaged views, so we constrain the worst view too; (5) honest numbers: 51-66% kept at 40 dB mean / 35 dB worst; (6) negative result on the
+  algorithm: the GA beats random search but not CMA-ES or a refined importance sweep (one basin), and the Pareto-front searchers (NSGA-II, MAP-Elites)
+  do not beat the sweep's own front; (7) next: a search space a sweep cannot cover (evolved importance score, per-region thresholds).
 - **Slide-ready now:** `compare.png` (one-slide summary), any `runs/*/plots.png` (method detail), `runs/*/renders.jpg` and `images/` (what it looks like; the robust-setting
-  strip per scene is the natural hero image), the tables above.
+  strip per scene is the natural hero image), the tables above (note the comparability caveats).
 - **Worth making (not done):** a "what got removed" render (removed Gaussians only) and top-down kept/removed plot; threshold-sweep GIF (opacity 0 -> 0.2); importance and opacity histograms with the evolved cutoffs; per-view
   PSNR bars (the tail damage); FPS of pruned scenes (the speed claim is untested: we report counts, not FPS yet).
