@@ -5,13 +5,18 @@ Long reference doc (skim the section you need; start at `README.md`; plan and st
 formats and conventions, metrics, fitness design, genome/operators, baselines,
 experiment protocol, and known pitfalls. Pairs with `gs_loader.py`.
 
+**Written before the EA existed (2026-11-02), so sections 5-8 and 10 are options and advice, not a record of what was built.** What we chose and
+why is in `EA_PLAN.md` ("Decisions already made"); what happened is in `figures/README.md`. Where this doc and those disagree, they win. Main differences:
+feasibility-first constraint (5.2 B) instead of a weighted sum; mutation + tournament selection with elitism and **no crossover** (6.2); no YAML configs
+(8: every run is a CLI call and writes its arguments into `summary.json`); an importance-percentile gene works far better than the three plain thresholds.
+
 ---
 
 ## 1. Project in one paragraph
 
 Take a **pretrained** 3DGS scene, define a small vector of pruning thresholds
 (min opacity, max scale, …), and evolve that vector with a GA (tournament
-selection + crossover + mutation). Each candidate produces a keep-mask over the
+selection + mutation; crossover was left out, see section 6.2). Each candidate produces a keep-mask over the
 Gaussians; the pruned scene is rendered from a set of cameras and compared to the
 unpruned renders. Fitness rewards high quality and few Gaussians. Stretch goal:
 evolve separate thresholds per spatial chunk of the scene.
@@ -241,7 +246,7 @@ Most interpretable claim: "X% fewer Gaussians at < 0.5 dB loss."
 ### 6.2 Operators (real-valued genome)
 - Selection: tournament (k = 2–4) as planned, plus **elitism** (keep top 1–2).
 - Crossover: BLX-α or SBX (simulated binary crossover); uniform crossover is
-  weak for few real genes.
+  weak for few real genes. *(Not used: `ea.py` is mutation + tournament + elitism only.)*
 - Mutation: Gaussian, σ ≈ 5–10% of gene range, clip to bounds.
 - Population/generations: with 3–6 genes, ~20–40 individuals × 30–100
   generations is plenty. Budget = pop × gens evaluations — log it.
@@ -262,6 +267,8 @@ version but is intractable for a GA; the threshold vector is a compact
 4. **Random search with the same evaluation budget** as the GA.
 5. (Optional) **CMA-ES** with the same budget — a strong continuous optimizer;
    good to show whether the GA's operators actually matter.
+
+*(All five are implemented in `experiment.py`; 1-D sweeps are a sixth. Result: CMA-ES and a refined sweep matched or beat the GA, see `figures/README.md`.)*
 
 The search space is low-dimensional and fairly monotone (lower thresholds keep
 more), so random search / CMA-ES may match the GA. That's a legitimate finding —
@@ -292,7 +299,7 @@ but you need the baseline to know.
   genome per generation. Plotting later is then trivial.
 - **Config files:** every run driven by a YAML/JSON config (scene, method,
   λ/τ, pop, gens, seed). Same config → same experiment, whether on a laptop or
-  another machine (addresses the "testing the same thing" goal in Week 4).
+  another machine. *(We use CLI flags instead; `summary.json` stores the exact `args`, and runs are deterministic.)*
 
 ---
 
@@ -383,17 +390,7 @@ scene once, cache baselines); write each run's results to its own file. Cluster/
 
 ## 13. Code layout
 
-The current layout is in `README.md`. Planned additions as the EA is built (all inside `easplatting/` unless noted):
-
-```
-easplatting/genome.py     # gene bounds, encode/decode, genome -> keep-mask (uses thresholds.py)
-easplatting/fitness.py    # mask -> renders -> metrics -> fitness
-easplatting/search.py     # random search, GA (tournament + mutation + elitism), optional CMA-ES
-easplatting/run.py        # one EA run from a config; writes results/{run_id}.jsonl
-configs/                  # YAML per experiment
-```
-
-Build order: `gs_loader` → `cameras` + `render` (verify unpruned vs. GT) →
-`metrics` (verify against a known value, e.g. 3DGS paper numbers on one scene) →
-`genome` + `fitness` → random search (simplest optimizer, validates the loop) →
-GA → multi-scene runs.
+The current layout is in `README.md`. Build order that worked: `gs_loader` → `cameras` + `render` (verify unpruned vs. GT) →
+`metrics` (verify against a known value, e.g. NerfBaselines' published numbers) → `thresholds` + `genome` + `fitness` → random search (simplest
+optimizer, validates the loop) → GA → the other searchers → multi-scene runs. The planned `search.py`, `run.py` and `configs/` were never built:
+the searchers live in `ea.py`, `cmaes.py`, `nsga2.py`, `map_elites.py`, and `experiment.py` / `front.py` are the run scripts.

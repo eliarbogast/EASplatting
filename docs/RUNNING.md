@@ -31,6 +31,9 @@ export TORCH_EXTENSIONS_DIR=$PWD/.torch_extensions
 python -m pytest -q tests              # CPU tests with a fake renderer: all should pass
 ```
 
+The same CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`: CPU torch, fake gsplat from `tests/`, then `pip install -r requirements.txt`).
+A new third-party import in `easplatting/` or `tests/` must also go into `requirements.txt`, or CI fails with `ModuleNotFoundError` while your machine passes.
+
 The script picks the torch build from your hardware: **torch 2.8 + cu128 by default** (kernels for sm_70 to
 sm_120, incl. RTX 50xx Blackwell), torch 2.4.1/cu124 for older drivers or pre-Volta GPUs. There is no prebuilt
 gsplat wheel for cu128, so gsplat JIT-compiles its CUDA kernels on first use (needs `nvcc`, which the script
@@ -109,16 +112,11 @@ python scripts/measure.py metrics    # what do PSNR / SSIM / LPIPS mean for prun
 Re-run `cost` on every new GPU type and update the budget in [`EA_PLAN.md`](EA_PLAN.md). Keep each machine's
 `report.json` too (it records GPU, torch, gsplat versions and timings).
 
-## 7. Verified results (2026-11-02, RTX 5070 Ti, torch 2.8/cu128, gsplat 1.5.3)
+## 7. Reference numbers (bring-up, 2026-11-02; RTX 5070 Ti, torch 2.8/cu128, gsplat 1.5.3)
 
-| Run | Result |
-|---|---|
-| **Bonsai**, NerfBaselines 3DGS checkpoint, 1,247,650 Gaussians, 37 test views at 1559x1039 | PSNR 32.235 / SSIM 0.9421 / LPIPS-VGG 0.2622 vs NerfBaselines 32.197 / 0.9412 / 0.2538; all checks pass. Opacity > 0.005 keeps 87.9% at 60 dB vs unpruned. ~436 FPS single view, 4.6 GB peak |
-| **Truck**, gsplat 7k steps, 2.05 M Gaussians, 2:16 training | PSNR 23.829 / SSIM 0.8527 / LPIPS-alex 0.1340 vs the trainer's own 23.827 / 0.8526 / 0.1340 (`matches_gsplat`) |
-
-Raw reports and the fixes made during bring-up: [`archive/bring_up/`](archive/bring_up/README.md). Convention
-worth remembering: LPIPS-VGG follows NerfBaselines (inputs rescaled to [-1,1]); the Inria repo feeds raw [0,1]
-and reads ~0.05 lower (`--lpips-net vgg-raw`).
+Both pipelines match their references (bonsai vs NerfBaselines: 32.235 dB vs 32.197; truck vs gsplat's own eval: 23.829 vs 23.827). The full table,
+raw reports and the fixes made during bring-up are archived in [`archive/bring_up/`](archive/bring_up/README.md). Convention worth remembering:
+LPIPS-VGG follows NerfBaselines (inputs rescaled to [-1,1]); the Inria repo feeds raw [0,1] and reads ~0.05 lower (`--lpips-net vgg-raw`).
 
 ## 8. Running a GPU job from Claude Code (pop-os)
 
@@ -135,8 +133,33 @@ The `env` variables replace `conda activate` (they are what `~/miniforge3/envs/g
 Without `CUDA_HOME`, gsplat prints "No CUDA toolkit found" and fails with `'NoneType' object has no attribute
 'CameraModelType'`. In your own terminal just `conda activate gsprune`. CPU tests need no GPU:
 `~/miniforge3/envs/gsprune/bin/python -m pytest -q tests`. (Also saved in Claude's memory, `gpu-runs-easplatting`.)
-Every `experiment` run also publishes its plot into the tracked `figures/` (see `figures/README.md`); commit it with the run.
 Cluster (VACC) notes are archived in [`archive/vacc.md`](archive/vacc.md).
+
+## 9. Run the EA experiments (GPU; from Claude Code wrap each in `gpu-run`, section 8)
+
+Needs the scene data and NerfBaselines checkpoints (`bash scripts/get_data.sh mipnerf360 garden counter bicycle` and `... nb-checkpoints ...`, section 2). `--scene` is
+a Mip-NeRF 360 scene name (bonsai and counter are indoor, `images_2`; the rest `images_4`). Importance scores are computed once per scene and mode and cached in
+`results/cache/`. Defaults are in each tool's `--help`; these are the settings behind the tables in [`figures/README.md`](../figures/README.md):
+
+```bash
+python -m easplatting.experiment --scene bonsai                       # 4 genes, ga,random,sweep, 3 seeds, 8 views, mean PSNR >= 40 dB
+python -m easplatting.experiment --scene bonsai --views 32 --worst-tau 35        # robust: 32 views, worst view >= 35 dB too
+python -m easplatting.experiment --scene bonsai --views 32 --worst-tau 35 --importance max \
+    --methods ga,random,cmaes,sweep --sweep-refine 12                 # main run (chosen score, CMA-ES, refined sweeps)
+python -m easplatting.experiment --scene bonsai --views 32 --worst-tau 35 --importance density --methods sweep   # score screening
+python -m easplatting.front --scene bonsai --views 32 --importance max           # NSGA-II / MAP-Elites / random / sweeps, size-quality fronts
+```
+
+Other options: `--genes 3` (thresholds only), `--view-select coverage` (fitness views by camera coverage), `--allowed-loss 0.5` (derive tau from an allowed real
+loss vs the photos), `--parents/--children/--generations/--mutation` (GA budget: 32 + 64 x 10 = 672 evaluations), `--publish-images`. Importance modes: `sum`, `max`,
+`density`, `lg`, `learned`, `fisher` (the last two did not work well, see `figures/README.md`).
+
+**Outputs.** `results/<run>/` holds `log.jsonl` (one row per evaluation) and `summary.json` (best genome per run, held-out PSNRs) plus `renders.jpg` and the full-resolution
+`images/`. The run name is `<scene>_<genes>g[_v<views>][_w<floor>][_i<mode>][_cov|_L<loss>]` (fronts: `<scene>_front_v<views>[_i<mode>]`). Each run also publishes
+`plots.png` (or `front.png`), `renders.jpg` and `summary.json` into the tracked `figures/runs/<run>/` and refreshes `figures/compare.png`: **commit `figures/` with every run**.
+
+Redo figures without rerunning a search: `python -m easplatting.plot_run --all` (plots + `compare.png`), `python -m easplatting.strip results/<run>` (renders; needs the GPU),
+`python -m easplatting.plot_run results/<run> --images` (publish a run's full-resolution images, ~17 MB). After a run, update the tables in `figures/README.md`.
 
 ## Troubleshooting
 

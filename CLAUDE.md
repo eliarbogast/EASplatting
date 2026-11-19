@@ -4,12 +4,13 @@ Evolving post-hoc pruning thresholds for pretrained 3D Gaussian Splatting scenes
 (EA class project, Eli Arbogast + Areeb). A genome of thresholds → keep-mask over
 Gaussians → render with gsplat → compare to unpruned renders → fitness. No retraining.
 
-**Current phase: implementing the EA** (genome -> fitness -> random search -> GA). The local gsplat
-bring-up is done and verified on Eli's machine (see `docs/bring_up/README.md`).
+**Current phase: the EA is built and being evaluated** (genome -> fitness -> GA / random / CMA-ES / NSGA-II / MAP-Elites / sweeps, four
+Mip-NeRF 360 scenes; results in `figures/README.md`). Next: a search space a 1-D sweep cannot cover (see `docs/EA_PLAN.md`). The local gsplat
+bring-up is done and verified on Eli's machine (record: `docs/archive/bring_up/README.md`).
 
-Start at `README.md` (status, quickstart, layout, doc map). `docs/EA_PLAN.md`: decisions, next steps, open
+Start at `README.md` (status, quickstart, layout, doc map). `docs/EA_PLAN.md`: status, decisions, next steps, open
 questions, compute budget, how to measure fitness. `docs/RUNNING.md`: how to run, check and measure things, and
-the `gpu-run` recipe for GPU jobs from Claude Code (section 8). `docs/BACKGROUND.md`: long reference (metrics, fitness options, baselines, pitfalls).
+the `gpu-run` recipe for GPU jobs from Claude Code (section 8) and every EA tool with its options (section 9). `docs/BACKGROUND.md`: long reference (metrics, fitness options, baselines, pitfalls).
 
 ## Layout
 Code lives in the `easplatting/` package; run tools as `python -m easplatting.<name>` from the repo root.
@@ -22,7 +23,9 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
 - `easplatting/genome.py` (genome in [0,1]^3 or ^4 -> thresholds, with "off" zones; 4th gene = importance percentile),
   `fitness.py` (`Individual`, feasibility-first `make_fitness_function`), `ea.py` (`evolutionary_algorithm`: mutation +
   tournament selection, elitism, no crossover; keep its comments short), `experiment.py` (`python -m easplatting.experiment`:
-  GA / random / 1-D sweeps on one scene, JSONL log per evaluation, summary with held-out test PSNR)
+  GA / random / CMA-ES / 1-D sweeps on one scene, JSONL log per evaluation, summary with held-out test PSNR)
+- `easplatting/scores.py` the gradient-based importance scores (`learned` gates, `fisher`; both currently weak). The 4th gene's other scores (`sum`/`max`/
+  `density`/`lg`) come from `experiment.importance_scores` via `render.gaussian_contributions` / `per_view_contributions`, cached in `results/cache/`
 - `easplatting/nsga2.py` (NSGA-II + hypervolume helpers), `map_elites.py`, `cmaes.py`: the other searchers, same style and interface
   idea as `ea.py` (plain functions returning arrays over time). `front.py` (`python -m easplatting.front`) runs NSGA-II / MAP-Elites /
   random / sweeps on the size-quality plane and `plot_front.py` draws `front.png`
@@ -39,7 +42,8 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
 - `figures/` TRACKED: `README.md` is the ONE results summary (tables, findings, presentation notes; update it after each new run, plans stay
   in `docs/EA_PLAN.md`), `compare.png`, `runs/<run>/` (plots.png, renders.jpg, summary.json; full-res `images/` only with `--publish-images`, ~17 MB/run). Commit it with every run.
 - `tests/` CPU tests with a fake gsplat (`tests/fake_gsplat`)
-- `docs/archive/` history only (bring-up results, VACC notes, first EA test); don't update it
+- `docs/archive/` history only (bring-up results, VACC notes, first EA test, early plan questions; index in its README); don't update it, but
+  move retired material there (with a line in its README) instead of deleting it
 
 ## Conventions that must not drift
 - Code style for algorithm code: match `ea.py` (black formatting, 88 columns, one argument per line when wrapped, trailing commas,
@@ -67,7 +71,10 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
 
 ## Working here
 - Tests: `python -m pytest -q tests` (CPU, no GPU needed). Keep them passing; add a test
-  with the fake rasterizer for new plumbing.
+  with the fake rasterizer for new plumbing. GitHub Actions runs them on every push (`.github/workflows/tests.yml`, installs only
+  `requirements.txt` + CPU torch): any new third-party import must be added to `requirements.txt`, or CI fails with `ModuleNotFoundError`.
+- Docs: after a new run update `figures/README.md`; after a decision or a finished step update `docs/EA_PLAN.md` (status, next steps); keep the
+  README layout and this file's layout in sync with new modules.
 - GPU runs from Claude Code: plain sandboxed commands cannot see the GPU; use `/usr/local/bin/gpu-run` exactly as in
   `docs/RUNNING.md` section 8 (one plain command: no `cd &&`, no pipe).
 - Real rendering needs Linux + NVIDIA. Cloud sessions can't run gsplat: say so rather than
