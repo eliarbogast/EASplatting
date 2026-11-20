@@ -128,6 +128,16 @@ The 10 features: `max`, `opacity`, `volume`, `views`, `camdist`, `sum`, `density
 
   CMA-ES < GA (p = 0.0003 bonsai, 0.0001 counter) and GA < random (p = 0.0001, 0.0006). Random keeps about as many as the sweep or more, so its higher test PSNR is just size. The margin does **not** close the
   held-out gap: CMA-ES test mean is below 41 dB on both scenes and bonsai's worst view stays ~32 dB (held-out poses, which a margin on fitness views cannot fix).
+- **Bonsai worst-view fixes** (CMA-ES, 5 seeds each, mean floor 41 dB, `wfix_*`; baseline = 10-seed row above: 41.4% kept, test worst 32.0):
+
+  | fitness | % kept | test mean dB | test worst dB |
+  |---|---|---|---|
+  | worst floor 39, 32 views | 43.0 | 40.6 | 34.3 |
+  | worst floor 36, 64 views | 41.6 | 40.3 | 32.6 |
+  | worst floor 39, 64 views | 43.6 | 40.7 | 35.0 (34.3-35.9) |
+
+  A stricter worst floor buys ~2.3 dB of held-out worst view for ~1.6 points kept; 64 views alone do nothing; both together reach ~35.0 dB for ~2.2 points kept, still short of 36 and of the 41 dB test mean.
+  The held-out gap is poses, so only a floor set above the target closes it (about 1 dB per point of floor slack). 5 seeds: differences under ~1 dB are noise.
 Reproduce: `python -m easplatting.explore combo --scene bonsai --features max,opacity,volume,views,camdist,sum,density,lg,fisher,learned --learn-weights --warm --methods ga,cmaes`, then
 `python scripts/summarize_explore.py`; held-out evaluation `python -m easplatting.explore_eval transfer|fronts|stress|gapcheck|fps`; the figure `python scripts/plot_explore_fronts.py`. Raw rows: `results/explore/*.jsonl` (git-ignored).
 
