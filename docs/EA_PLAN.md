@@ -24,6 +24,11 @@ CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `r
   scene (one basin, reached by a single importance cutoff). NSGA-II and MAP-Elites lose to the importance sweep's own front.
 - The `learned` and `fisher` scores failed in this simple form (worse than opacity alone), so there is no honest comparison with published scores yet.
 
+**Exploration branch (2026-11-19, `explore/harder-search-2026-11-19`; details in `figures/README.md`, 2 seeds, bonsai + counter).** A genome of weights over 10 per-Gaussian
+feature ranks (+ cutoffs) beats the 1-D importance sweep by 6-13 points kept and is where the GA / CMA-ES clearly beat random search; CMA-ES still beats the GA. Only the 10-feature genome transfers
+across scenes. Evolved genomes miss the 40 / 35 dB floors on held-out views (bonsai: held-out poses; counter: half-res fitness vs full-res test), a +1 dB margin fixes counter. FPS is measured: 1.3-1.6x at ~40% kept,
+but count is a poor proxy for speed (opacity pruning is faster at equal count). Next-step items 1-3 below are partly done on that branch; the open ones are 20-30 seeds, a full-res or multi-resolution fitness, and an FPS-aware size objective.
+
 ## Decisions already made
 - **Renderer: gsplat 1.5.3** (latest release; 1.6.0 on main is unreleased with a different trainer API). Batched
   multi-camera forward renders from Python; a mask is just tensor indexing.

@@ -29,6 +29,10 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
 - `easplatting/nsga2.py` (NSGA-II + hypervolume helpers), `map_elites.py`, `cmaes.py`: the other searchers, same style and interface
   idea as `ea.py` (plain functions returning arrays over time). `front.py` (`python -m easplatting.front`) runs NSGA-II / MAP-Elites /
   random / sweeps on the size-quality plane and `plot_front.py` draws `front.png`
+- `easplatting/explore.py` (`python -m easplatting.explore combo|scores|fps`) the harder search space: genome = weights over per-Gaussian feature ranks +
+  one importance cutoff per region (depth shells / spatial cells); with weights fixed to `max` and one region it IS the 1-D sweep, so every setting nests the
+  baseline. Results append to `results/explore/results.jsonl`. `explore_eval.py` (`transfer|fronts|stress|gapcheck|fps`) evaluates the evolved genomes on held-out
+  views / scenes / resolutions; `features.py` holds the extra per-Gaussian features. Exploratory code (branch `explore/harder-search-2026-11-19`), not in ea.py style.
 - `easplatting/plot_run.py` standard PNG per run + `compare.png`; `experiment.py` calls `publish()` so every run lands in `figures/`
 - `easplatting/strip.py` render strip per run (unpruned vs best genomes, error maps, 4x zoom of the worst spot; GPU), `renders.jpg` + lossless full-res `images/` (always in `results/<run>/`), published to `figures/`
 - `easplatting/evaluate.py` end-to-end check: scene + cameras -> renders -> metrics -> `report.json`
@@ -38,7 +42,7 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
   `train_gsplat.sh`; `check_env.py` (machine report; ask for its output when debugging someone's setup;
   `--smoke-only` pre-warms gsplat, `--prefetch-weights` fetches LPIPS weights); `download.py` (replaces
   wget/curl/unzip; also range-extracts from remote zips); `measure.py` (`cost` feeds EA_PLAN's budget,
-  `metrics` feeds its fitness assessment)
+  `metrics` feeds its fitness assessment); `summarize_explore.py`, `explore_weights.py`, `plot_explore_fronts.py` (tables / figure for `explore.py` runs)
 - `figures/` TRACKED: `README.md` is the ONE results summary (tables, findings, presentation notes; update it after each new run, plans stay
   in `docs/EA_PLAN.md`), `compare.png`, `runs/<run>/` (plots.png, renders.jpg, summary.json; full-res `images/` only with `--publish-images`, ~17 MB/run). Commit it with every run.
 - `tests/` CPU tests with a fake gsplat (`tests/fake_gsplat`)

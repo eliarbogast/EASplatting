@@ -12,6 +12,7 @@ def learned_gates(
     batch_size=8,
     learning_rate=0.05,
     start=2.0,
+    normalize=False,
 ):
     # a keep gate per gaussian, learned by gradient descent: the gated render must
     # match the unpruned render and every open gate costs something
@@ -38,6 +39,9 @@ def learned_gates(
             gradient = torch.autograd.grad(error, logits, retain_graph=True)[0]
             sparsity = gradient.abs()[gradient != 0].median()
         loss = error + sparsity * torch.sigmoid(logits).sum()
+        if normalize:
+            # per gaussian gradients are far below adam's eps (1e-8): rescale so they are order 1
+            loss = loss / sparsity
 
         optimizer.zero_grad()
         loss.backward()
@@ -76,3 +80,36 @@ def load_photos(views, device):
     width, height = views.size
     photos = [load_image(path, size=(width, height)) for path in views.image_paths]
     return torch.stack(photos).to(device)
+
+
+def fisher_jacobian(scene, views, probes=2, seed=0):
+    # diagonal Fisher information of the rendered image itself (not the photo loss):
+    # for a random +-1 image r, (d sum(r * image) / d parameter)^2 has the expected
+    # value of the squared Jacobian column, so it measures how much each gaussian
+    # moves the output, whatever the model's own error is
+    device = scene["means"].device
+    count = scene["means"].shape[0]
+    width, height = views.size
+    viewmats, Ks = views.viewmats.to(device), views.Ks.to(device)
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    score = torch.zeros(count, device=device)
+    names = ("means", "scales", "opacities", "quats", "colors")
+    for i in range(len(views)):
+        splats = {k: v.detach() if torch.is_tensor(v) else v for k, v in scene.items()}
+        for name in names:
+            splats[name] = splats[name].clone().requires_grad_()
+        view = slice(i, i + 1)
+        image, _, _ = _rasterize(splats, viewmats[view], Ks[view], width, height)
+        for probe in range(probes):
+            signs = torch.randint(
+                0, 2, image[0, ..., :3].shape, device=device, generator=generator
+            )
+            for name in names:
+                splats[name].grad = None
+            (image[0, ..., :3] * (2.0 * signs - 1)).sum().backward(retain_graph=True)
+            for name in names:
+                gradient = splats[name].grad
+                if gradient is not None:
+                    score += (gradient**2).reshape(count, -1).sum(dim=1)
+    return score

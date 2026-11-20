@@ -70,6 +70,54 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
   The importance sweep alone has the best front on all scenes; NSGA-II beats random everywhere, MAP-Elites only on bonsai/garden. MAP-Elites archives fill
   90-96% of cells, so the descriptor space is easy to cover but the extra diversity does not buy quality.
 
+## Exploration: search spaces a 1-D sweep cannot cover (2026-11-19, branch `explore/harder-search-2026-11-19`)
+EXPLORATORY: bonsai and counter, **2 seeds**, 1,312 evaluations per run, the main-run fitness (32 views, mean >= 40 dB, worst >= 35 dB, `max` importance), no significance tests yet.
+The genome is a weight per per-Gaussian feature rank plus one importance cutoff per region (`easplatting/explore.py`); with weights fixed to `max` and one region it is
+exactly the refined 1-D sweep, so every row nests the baseline. Warm = GA / CMA-ES start at the sweep optimum. % kept, mean of 2 seeds (lower is better):
+
+| Search space (genes) | bonsai GA | bonsai CMA-ES | counter GA | counter CMA-ES |
+|---|---|---|---|---|
+| 1-D importance sweep (refined) | 51.0 | 51.0 | 42.7 | 42.7 |
+| 5 feature weights, cold (6) | 46.6 | 43.5 | 47.4 | 41.3 |
+| 5 feature weights, warm (6) | 44.0 | 42.6 | 42.2 | 41.0 |
+| 4 depth shells, cold (4) / warm (4) | 43.0 / 42.8 | 42.4 / 42.3 | 43.0 / 42.7 | 42.5 / 42.4 |
+| 8 spatial cells, warm (8) | 44.6 | 42.9 | 42.7 | 42.6 |
+| **10 features, warm (11)** | 41.1 | 40.3 | 38.0 | 36.8 |
+| 10 features, cold (11) | 43.3 | 39.8 | 40.8 | 37.6 |
+| 10 features, random search (11) | 47.8 | | 47.8 | |
+| 10 + repaired `learned2`, `fisherj` (13) | 41.0 | 38.8 | 38.0 | 36.4 |
+| 10 features + 4 depth shells (14) | 41.6 | **37.8** | 40.1 | 36.5 |
+
+The 10 features: `max`, `opacity`, `volume`, `views`, `camdist`, `sum`, `density`, `lg`, `fisher`, `learned` (percentile ranks; `explore.py`).
+- **A richer space is where the search methods earn their place:** 6-13 points under the 1-D sweep on bonsai, 5-6 on counter. From a cold start random search is
+  5-11 points worse than the GA and CMA-ES; CMA-ES beats the GA by 1-3 points. A warm start is not needed (cold CMA-ES lands within ~1 point of warm).
+- **Depth shells and spatial cells only help on bonsai** (counter: no gain over the sweep). Shell cutoffs do not transfer to other scenes (below).
+- **Matched size on the test views** (`explore_fronts.png`): at ~42% kept the evolved genomes are -0.8 dB vs the photos on bonsai against about -2.2 (`max`), -4.1 (`lg`)
+  and -1.2 (`sum`) (interpolated between the 40% and 50% points); on counter -0.45 vs -0.6 (`max`). The worst test view only ties `max` on bonsai; on counter the 10-feature genome at 37% kept is ~2.5 dB better.
+  `lg` (LightGaussian-style score, **no fine-tuning, our re-implementation**) is the weakest score at every size (-4.5 dB at 40% kept, worst view ~15 dB).
+- **The floors do not hold on held-out views:** evolved genomes sit at test mean 39.6-40.0 dB and worst view 31-34 dB (floor 40 / 35) because the searchers stop at the constraint
+  boundary; random search lands further from it and passes more often (bonsai 5-weight space: 2 of 2 runs, evolved: 0 of 4). A +1 dB margin on tau and worst-tau recovers the counter floor
+  (worst test view 36.2 dB) for ~1.3 points kept, but not bonsai (worst test view still 32 dB).
+  Diagnosis (`explore_eval gapcheck`, mean dB vs unpruned): on **bonsai** the gap is held-out poses (train -> test at the same resolution: evolved -0.3 mean / -1.6 worst,
+  sweep -0.1 / 0); on **counter** it is resolution (half -> full res costs the evolved genome 1.85 dB, the sweep 0.8 dB; test and train views agree at half res). Fitness views vs all train
+  views agree to 0.1 dB. Fitness on 8 views overfits badly (bonsai worst test view 20 dB); 32 and 64 views are similar.
+- **Transfer (genome evolved on X, applied to Y, one scalar re-calibrated on Y's fitness views):** only the 10-feature genome carries over: vs Y's own sweep -9.5 (bonsai), -0.5 (counter), -4.2 (garden),
+  -0.9 (bicycle) points kept; shell genomes +0.5..+12 (no gain); 5-weight genomes mixed. Some of the gain costs held-out quality (garden test 34.8 / 25.9 dB vs the sweep's 36.2 / 27.1).
+- **Novel viewpoints** (`explore_eval stress`, cameras jittered up to one camera spacing and 10 degrees): no extra damage for evolved genomes; on counter every importance-based mask loses ~5 dB on its
+  worst view at the largest jitter (`max` included), a weakness of train-view importance in general.
+- **`learned` / `fisher` repair:** the gate learner's per-Gaussian gradients (~1e-10) were below Adam's eps (1e-8), so nothing moved; with the loss rescaled the gates separate
+  (1-D sweep 100% -> 80.8% kept on bonsai, still far behind `max` at 51.0%). A Jacobian-based Fisher (`scores.fisher_jacobian`, render sensitivity, not photo loss) gives 91.3% kept. Both have good *mean*
+  quality at 50-60% kept but worst views of 15-20 dB, which is why the worst-view floor rejects them. As extra features they add 0.4-1.5 points (CMA-ES).
+- **New feature groups** (`features.py`: tail contribution, edge strength, pixel footprint, depth, neighbour density, scale / anisotropy, leave-fitness-views-out importance) added to the 10: bonsai CMA-ES -0.4 to -1.7 points
+  (footprint and neighbour density best), counter -0.5 to +0.1, all 19 together -1.3 / +0.6, GA unchanged. Within seed noise (~1 point): the 10-feature set looks saturated.
+- **FPS** (test views, full res, RTX 5070 Ti, `explore_eval fps`): unpruned -> evolved masks at 37-42% kept: bonsai 447 -> 568-631 fps (1.27-1.41x), counter 306 -> 437-493 (1.43-1.61x), garden / bicycle at
+  50% kept (importance cutoff) 1.56x / 1.52x. **Gaussian count is a poor proxy for speed:** opacity pruning at the same count renders much faster (bonsai 1.63-1.73x, counter 1.75-1.96x), because it removes
+  large faint Gaussians that importance keeps.
+- **Negative results:** a fitness cache saves nothing (<2% duplicate genomes at 2 decimals); a 4-view multi-fidelity prefilter skips only 6-19% of evaluations (warm starts sit near the boundary), 0-20% time saved, no quality change.
+- Feature-weight analysis (`scripts/explore_weights.py`): `max` carries ~0.6-0.9 of the normalized weight; the features are collinear (`sum` vs `max` Spearman 0.94), so weight vectors are not unique (cosine 0.68 between seeds).
+Reproduce: `python -m easplatting.explore combo --scene bonsai --features max,opacity,volume,views,camdist,sum,density,lg,fisher,learned --learn-weights --warm --methods ga,cmaes`, then
+`python scripts/summarize_explore.py`; held-out evaluation `python -m easplatting.explore_eval transfer|fronts|stress|gapcheck|fps`; the figure `python scripts/plot_explore_fronts.py`. Raw rows: `results/explore/*.jsonl` (git-ignored).
+
 ## Comparability of runs (read before comparing tables)
 - **Baseline tables A and B above** use the summed blend-weight importance, un-refined 64-point sweeps and no CMA-ES.
 - **Importance-score screening** (`*_4g_v32_w35_i<mode>`, 1-D sweeps only) keeps everything of B the same (32 views, mean >= 40 dB, worst >= 35 dB, same

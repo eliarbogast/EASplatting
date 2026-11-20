@@ -14,6 +14,7 @@ def evolutionary_algorithm(
     mutation_size=0.1,
     tournament_size=4,
     num_tournament_winners=2,
+    init_genomes=None,
 ):
 
     # initialize record keeping
@@ -32,6 +33,8 @@ def evolutionary_algorithm(
     population = []
     for i in range(num_parents):
         population.append(Individual(fitness_function, genome_length))
+        if init_genomes is not None:  # optional warm start (explore.py)
+            population[-1].genome = np.array(init_genomes[i % len(init_genomes)], dtype=float)
 
     # get population fitness
     for i in range(len(population)):

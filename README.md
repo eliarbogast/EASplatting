@@ -59,6 +59,9 @@ easplatting/           the code; run a tool with  python -m easplatting.<name>
   ea.py, experiment.py   minimal evolutionary algorithm (mutation + tournament selection); GA / random / CMA-ES / 1-D sweeps on one scene
   nsga2.py, map_elites.py, cmaes.py   NSGA-II (+ hypervolume), MAP-Elites, CMA-ES, in the style of ea.py
   front.py, plot_front.py   size-quality fronts and archives: NSGA-II / MAP-Elites vs random vs sweeps; their figure
+  explore.py             harder search spaces: genome = weights over per-Gaussian feature ranks + per-region cutoffs (nests the 1-D sweep); FPS; cached extra scores
+  explore_eval.py        held-out evaluation of those genomes: cross-scene transfer, fronts vs photos, novel-view stress, train/test x half/full-res gap check, FPS
+  features.py            extra per-Gaussian features (tail contribution, edge strength, footprint, depth, neighbour density)
   plot_run.py            one standard PNG per run + a comparison PNG, published into figures/
   strip.py               render strip per run (unpruned vs best genomes, error maps, zoom); GPU
   evaluate.py            scene + cameras -> renders -> metrics -> report.json (with cross-checks)
@@ -68,6 +71,7 @@ scripts/               setup_local.sh, get_data.sh, train_gsplat.sh  (shell)
                        check_env.py (machine report, gsplat smoke test, LPIPS weights)
                        download.py (resumable download, unzip, range-extract from a remote zip)
                        measure.py (cost of a fitness evaluation; what the metrics mean)
+                       summarize_explore.py, explore_weights.py, plot_explore_fronts.py (tables and figure for the explore.py runs)
 tests/                 CPU tests with a fake gsplat (tests/fake_gsplat)
 docs/                  RUNNING.md, EA_PLAN.md, BACKGROUND.md, archive/ (history only)
 .github/workflows/    tests.yml: CPU tests on every push

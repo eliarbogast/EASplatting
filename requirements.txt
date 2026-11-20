@@ -3,6 +3,7 @@
 plyfile
 pillow
 matplotlib
+scipy
 numpy<2
 torchmetrics[image]
 pytest

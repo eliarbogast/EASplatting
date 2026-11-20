@@ -7,6 +7,7 @@ def cma_es(
     population_size=32,
     genome_length=4,
     step_size=0.3,
+    init_mean=None,
 ):
     # fitness_function(genome) -> (fitness, kept, psnr), maximized
     # genomes are clipped to [0, 1]
@@ -25,7 +26,7 @@ def cma_es(
     chi_n = np.sqrt(n) * (1 - 1 / (4 * n) + 1 / (21 * n**2))
 
     # the initialization procedure
-    mean = np.full(n, 0.5)
+    mean = np.full(n, 0.5) if init_mean is None else np.array(init_mean, dtype=float)
     sigma = step_size
     covariance = np.eye(n)
     path_c = np.zeros(n)
