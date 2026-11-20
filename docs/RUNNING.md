@@ -147,6 +147,9 @@ python -m easplatting.experiment --scene bonsai --views 32 --worst-tau 35       
 python -m easplatting.experiment --scene bonsai --views 32 --worst-tau 35 --importance max \
     --methods ga,random,cmaes,sweep --sweep-refine 12                 # main run (chosen score, CMA-ES, refined sweeps)
 python -m easplatting.experiment --scene bonsai --views 32 --worst-tau 35 --importance density --methods sweep   # score screening
+python -m easplatting.experiment --scene bonsai --views 32 --worst-tau 35 --importance max --fit-scale 1 \
+    --methods ga,random,cmaes,sweep --sweep-refine 12 --seeds 10      # full-resolution fitness views (output folder gets _res1)
+python -m easplatting.rescore --runs bonsai_4g_v32_w35_imax          # re-score a finished run's genomes at full res, no new search
 python -m easplatting.front --scene bonsai --views 32 --importance max           # NSGA-II / MAP-Elites / random / sweeps, size-quality fronts
 ```
 

@@ -5,7 +5,7 @@ Eli + Areeb. How to run things: [`RUNNING.md`](RUNNING.md). Results: [`figures/R
 Background and fitness-design options: [`BACKGROUND.md`](BACKGROUND.md) sections 5-8. The early open questions, the
 parked decisions and the first prototype are in [`archive/ea_plan_2026-11.md`](archive/ea_plan_2026-11.md).
 
-## Status (2026-11-19)
+## Status (2026-11-20)
 
 **Built and verified.** On a real GPU (RTX 5070 Ti): scene loading, cameras, rendering, metrics (match NerfBaselines and gsplat's own
 eval), the evaluation report, the interactive viewer, the threshold -> mask logic (`thresholds.py`), data/setup/measurement scripts.
@@ -22,6 +22,9 @@ CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `r
   constrained (>= 35 dB) the honest number is 51-66%.
 - The EA does not earn its place yet: the GA beats random search by 9-21 points but loses to CMA-ES and the refined 1-D importance sweep on every
   scene (one basin, reached by a single importance cutoff). NSGA-II and MAP-Elites lose to the importance sweep's own front.
+- **Half-res fitness over-reports quality (2026-11-20).** Re-scoring the main runs' genomes at full res shows the 40 / 35 dB floors fail on counter, garden and bicycle
+  (garden worst view 29 dB, bicycle 27 dB). Evolving on full-res fitness views (10 seeds) costs +1 point kept indoors and +11 to +13 outdoors; importance beats opacity by 20-23 points on bonsai and
+  counter but only 6 on bicycle and ~2 (a tie) on garden. GA < random everywhere and CMA-ES < GA, CMA-ES ties the refined sweep. **Full-res fitness is now the main setting** (`experiment.py --fit-scale 1`).
 - The `learned` and `fisher` scores failed in this simple form (worse than opacity alone), so there is no honest comparison with published scores yet.
 
 ## Decisions already made
@@ -34,7 +37,7 @@ CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `r
 - **Scenes:** bonsai and counter (indoor, ~1.2 M Gaussians), garden and bicycle (outdoor, several million). bonsai is the dev scene.
   Tanks & Temples comes from Inria's `tandt_db` (not NerfBaselines' T&T, which is preprocessed differently).
 - **Fitness:** feasibility-first. Minimize the kept fraction subject to mean PSNR >= tau (default 40 dB) vs the unpruned renders on K fixed
-  half-res train views (8, or 32 for the robust setting), optionally also worst-view PSNR >= `--worst-tau`. Reference = the unpruned renders
+  train views (8, or 32 for the robust setting) at FULL resolution for reported results (`--fit-scale 1`; half-res fitness, the earlier default `--fit-scale 0.5`, misses the floors at full res), optionally also worst-view PSNR >= `--worst-tau`. Reference = the unpruned renders
   (cached), not the photos; final numbers report both. Evolve on train views, report on test views.
 - **Genes:** opacity, max scale, max anisotropy, importance percentile; a gene is "off" in an explicit zone of its range, and a Gaussian is kept only
   if every active gene passes. A gene's "off" must be exactly reachable (an earlier prototype that treated the top of the anisotropy range as "off"
@@ -46,6 +49,8 @@ CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `r
 - **Accepted:** our LPIPS-VGG is 0.008 above NerfBaselines' (within tolerance).
 
 ## Next steps (in order)
+0. **Importance scores at full resolution.** The scores behind the importance gene are still computed from half-res renders; recompute them at full res and re-run garden / bicycle to see whether the outdoor
+   over-pruning at half res (and the small importance-vs-opacity gap at full-res fitness) comes from the scores. Also test mixed fitness (full-res worst-view check only) and 0.75 resolution for cost.
 1. **Make the search problem harder, where a sweep cannot follow.** With 4 genes the GA loses to CMA-ES and a refined sweep (one basin). Evolve the
    importance score itself (genome = weights over per-Gaussian features: opacity, volume, view count, blend weight, distance to the camera hull)
    or per-region thresholds (depth shell / octree cell); only then is "the GA earns its place" testable.

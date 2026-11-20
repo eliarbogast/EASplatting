@@ -62,6 +62,7 @@ easplatting/           the code; run a tool with  python -m easplatting.<name>
   plot_run.py            one standard PNG per run + a comparison PNG, published into figures/
   strip.py               render strip per run (unpruned vs best genomes, error maps, zoom); GPU
   evaluate.py            scene + cameras -> renders -> metrics -> report.json (with cross-checks)
+  rescore.py             re-score finished runs' best genomes at full resolution (fitness views + test views), no new search
   viewer.py              interactive threshold-pruning viewer (viser)
   export_gsplat_cameras.py   cameras in gsplat-trainer's normalized frame
 scripts/               setup_local.sh, get_data.sh, train_gsplat.sh  (shell)

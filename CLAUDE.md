@@ -32,6 +32,7 @@ Code lives in the `easplatting/` package; run tools as `python -m easplatting.<n
 - `easplatting/plot_run.py` standard PNG per run + `compare.png`; `experiment.py` calls `publish()` so every run lands in `figures/`
 - `easplatting/strip.py` render strip per run (unpruned vs best genomes, error maps, 4x zoom of the worst spot; GPU), `renders.jpg` + lossless full-res `images/` (always in `results/<run>/`), published to `figures/`
 - `easplatting/evaluate.py` end-to-end check: scene + cameras -> renders -> metrics -> `report.json`
+- `easplatting/rescore.py` re-scores finished runs' best genomes at full resolution (`python -m easplatting.rescore --runs <run> ...`), no new search; `experiment.py --fit-scale 1` evolves on full-res fitness views
 - `easplatting/viewer.py` interactive viser viewer for threshold pruning
 - `easplatting/export_gsplat_cameras.py` cameras in gsplat-trainer's normalized frame
 - `scripts/` `setup_local.sh`, `get_data.sh`,

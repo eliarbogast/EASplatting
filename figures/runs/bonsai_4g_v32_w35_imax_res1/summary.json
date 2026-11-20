@@ -1,0 +1,875 @@
+{
+ "args": {
+  "scene": "bonsai",
+  "genes": 4,
+  "methods": "ga,random,cmaes,sweep",
+  "seeds": 10,
+  "tau": 40.0,
+  "views": 32,
+  "fit_scale": 1.0,
+  "worst_tau": 35.0,
+  "parents": 32,
+  "children": 64,
+  "generations": 10,
+  "mutation": 0.1,
+  "sweep_points": 64,
+  "sweep_refine": 12,
+  "importance": "max",
+  "view_select": "even",
+  "allowed_loss": null,
+  "out": null,
+  "publish_images": false
+ },
+ "runs": [
+  {
+   "method": "ga",
+   "seed": 0,
+   "evals": 672,
+   "seconds": 36.0,
+   "feasible": true,
+   "genome": [
+    0.48628,
+    0.90153,
+    0.98356,
+    0.49173
+   ],
+   "kept": 0.5066701398629423,
+   "fit_psnr": 40.46113586425781,
+   "train_psnr": 40.472015380859375,
+   "train_worst": 38.788753509521484,
+   "test_psnr": 40.35859298706055,
+   "test_worst": 38.74627685546875,
+   "thresholds": [
+    0.01882,
+    2.042,
+    Infinity,
+    0.4917
+   ]
+  },
+  {
+   "method": "ga",
+   "seed": 1,
+   "evals": 672,
+   "seconds": 41.3,
+   "feasible": true,
+   "genome": [
+    0.57796,
+    1.0,
+    0.97294,
+    0.29172
+   ],
+   "kept": 0.673780306977117,
+   "fit_psnr": 44.12815856933594,
+   "train_psnr": 44.06999969482422,
+   "train_worst": 38.264678955078125,
+   "test_psnr": 44.206565856933594,
+   "test_worst": 37.58243179321289,
+   "thresholds": [
+    0.03379,
+    Infinity,
+    Infinity,
+    0.2917
+   ]
+  },
+  {
+   "method": "ga",
+   "seed": 2,
+   "evals": 672,
+   "seconds": 42.7,
+   "feasible": true,
+   "genome": [
+    0.44861,
+    0.76532,
+    1.0,
+    0.43229
+   ],
+   "kept": 0.5664136576764317,
+   "fit_psnr": 42.478431701660156,
+   "train_psnr": 42.592185974121094,
+   "train_worst": 38.501319885253906,
+   "test_psnr": 42.42109680175781,
+   "test_worst": 37.94108963012695,
+   "thresholds": [
+    0.0148,
+    1.085,
+    Infinity,
+    0.4323
+   ]
+  },
+  {
+   "method": "ga",
+   "seed": 3,
+   "evals": 672,
+   "seconds": 40.5,
+   "feasible": true,
+   "genome": [
+    0.0,
+    0.88091,
+    1.0,
+    0.48984
+   ],
+   "kept": 0.5101422674628301,
+   "fit_psnr": 40.456459045410156,
+   "train_psnr": 40.438236236572266,
+   "train_worst": 37.75722122192383,
+   "test_psnr": 40.31757354736328,
+   "test_worst": 37.00602340698242,
+   "thresholds": [
+    0.0,
+    1.856,
+    Infinity,
+    0.4898
+   ]
+  },
+  {
+   "method": "ga",
+   "seed": 4,
+   "evals": 672,
+   "seconds": 40.6,
+   "feasible": true,
+   "genome": [
+    0.36121,
+    0.9061,
+    0.99391,
+    0.49143
+   ],
+   "kept": 0.5084406684566986,
+   "fit_psnr": 40.69190216064453,
+   "train_psnr": 40.6981201171875,
+   "train_worst": 38.82059097290039,
+   "test_psnr": 40.58930969238281,
+   "test_worst": 38.810420989990234,
+   "thresholds": [
+    0.008469,
+    2.086,
+    Infinity,
+    0.4914
+   ]
+  },
+  {
+   "method": "ga",
+   "seed": 5,
+   "evals": 672,
+   "seconds": 34.2,
+   "feasible": true,
+   "genome": [
+    0.53943,
+    0.87104,
+    0.95715,
+    0.47633
+   ],
+   "kept": 0.5195487516531079,
+   "fit_psnr": 40.474761962890625,
+   "train_psnr": 40.457359313964844,
+   "train_worst": 35.907257080078125,
+   "test_psnr": 40.33926010131836,
+   "test_worst": 36.49730682373047,
+   "thresholds": [
+    0.02642,
+    1.773,
+    Infinity,
+    0.4763
+   ]
+  },
+  {
+   "method": "ga",
+   "seed": 6,
+   "evals": 672,
+   "seconds": 38.2,
+   "feasible": true,
+   "genome": [
+    0.53399,
+    0.92109,
+    1.0,
+    0.4898
+   ],
+   "kept": 0.5067086121909189,
+   "fit_psnr": 40.23191833496094,
+   "train_psnr": 40.22418975830078,
+   "train_worst": 38.34429931640625,
+   "test_psnr": 40.14153289794922,
+   "test_worst": 38.47145462036133,
+   "thresholds": [
+    0.02552,
+    2.237,
+    Infinity,
+    0.4898
+   ]
+  },
+  {
+   "method": "ga",
+   "seed": 7,
+   "evals": 672,
+   "seconds": 36.3,
+   "feasible": true,
+   "genome": [
+    0.38761,
+    0.96959,
+    0.96107,
+    0.49396
+   ],
+   "kept": 0.5058149320722959,
+   "fit_psnr": 40.522247314453125,
+   "train_psnr": 40.53518295288086,
+   "train_worst": 38.601158142089844,
+   "test_psnr": 40.4339714050293,
+   "test_worst": 38.63344955444336,
+   "thresholds": [
+    0.01002,
+    Infinity,
+    Infinity,
+    0.494
+   ]
+  },
+  {
+   "method": "ga",
+   "seed": 8,
+   "evals": 672,
+   "seconds": 43.0,
+   "feasible": true,
+   "genome": [
+    0.45959,
+    1.0,
+    1.0,
+    0.49654
+   ],
+   "kept": 0.5024982967979802,
+   "fit_psnr": 40.29030227661133,
+   "train_psnr": 40.291259765625,
+   "train_worst": 38.40224075317383,
+   "test_psnr": 40.18571090698242,
+   "test_worst": 38.464515686035156,
+   "thresholds": [
+    0.01587,
+    Infinity,
+    Infinity,
+    0.4965
+   ]
+  },
+  {
+   "method": "ga",
+   "seed": 9,
+   "evals": 672,
+   "seconds": 40.6,
+   "feasible": true,
+   "genome": [
+    0.12264,
+    0.80376,
+    0.99573,
+    0.49114
+   ],
+   "kept": 0.5088013465314791,
+   "fit_psnr": 40.08579635620117,
+   "train_psnr": 40.15016174316406,
+   "train_worst": 37.702396392822266,
+   "test_psnr": 40.0421257019043,
+   "test_worst": 36.95438003540039,
+   "thresholds": [
+    0.001847,
+    1.297,
+    Infinity,
+    0.4911
+   ]
+  },
+  {
+   "method": "random",
+   "seed": 0,
+   "evals": 672,
+   "seconds": 23.3,
+   "feasible": true,
+   "genome": [
+    0.54335,
+    0.73963,
+    0.95687,
+    0.27799
+   ],
+   "kept": 0.6950595118823388,
+   "fit_psnr": 42.23759460449219,
+   "train_psnr": 42.59171676635742,
+   "train_worst": 34.840919494628906,
+   "test_psnr": 42.419490814208984,
+   "test_worst": 34.95812225341797,
+   "thresholds": [
+    0.02709,
+    0.9628,
+    Infinity,
+    0.278
+   ]
+  },
+  {
+   "method": "random",
+   "seed": 1,
+   "evals": 672,
+   "seconds": 23.9,
+   "feasible": true,
+   "genome": [
+    0.5162,
+    0.86323,
+    0.98413,
+    0.00987
+   ],
+   "kept": 0.7818795335230233,
+   "fit_psnr": 48.49403762817383,
+   "train_psnr": 48.29723358154297,
+   "train_worst": 37.86026382446289,
+   "test_psnr": 48.3253288269043,
+   "test_worst": 37.92142868041992,
+   "thresholds": [
+    0.02278,
+    1.71,
+    Infinity,
+    0.0
+   ]
+  },
+  {
+   "method": "random",
+   "seed": 2,
+   "evals": 672,
+   "seconds": 23.3,
+   "feasible": true,
+   "genome": [
+    0.34574,
+    0.96227,
+    0.96233,
+    0.44363
+   ],
+   "kept": 0.5562577645974431,
+   "fit_psnr": 44.5119743347168,
+   "train_psnr": 44.54508590698242,
+   "train_worst": 42.60868835449219,
+   "test_psnr": 44.393516540527344,
+   "test_worst": 41.86573028564453,
+   "thresholds": [
+    0.007673,
+    Infinity,
+    Infinity,
+    0.4436
+   ]
+  },
+  {
+   "method": "random",
+   "seed": 3,
+   "evals": 672,
+   "seconds": 25.0,
+   "feasible": true,
+   "genome": [
+    0.29469,
+    0.98811,
+    0.97122,
+    0.48185
+   ],
+   "kept": 0.5181348935999679,
+   "fit_psnr": 41.4215202331543,
+   "train_psnr": 41.44161605834961,
+   "train_worst": 39.49978256225586,
+   "test_psnr": 41.33692169189453,
+   "test_worst": 39.35578155517578,
+   "thresholds": [
+    0.005539,
+    Infinity,
+    Infinity,
+    0.4819
+   ]
+  },
+  {
+   "method": "random",
+   "seed": 4,
+   "evals": 672,
+   "seconds": 24.5,
+   "feasible": true,
+   "genome": [
+    0.03638,
+    0.84318,
+    0.99188,
+    0.18173
+   ],
+   "kept": 0.8182455015429007,
+   "fit_psnr": 53.55938720703125,
+   "train_psnr": 53.1821403503418,
+   "train_worst": 40.01454162597656,
+   "test_psnr": 53.05093765258789,
+   "test_worst": 38.80009841918945,
+   "thresholds": [
+    0.0,
+    1.558,
+    Infinity,
+    0.1817
+   ]
+  },
+  {
+   "method": "random",
+   "seed": 5,
+   "evals": 672,
+   "seconds": 23.8,
+   "feasible": true,
+   "genome": [
+    0.46049,
+    0.73463,
+    0.95375,
+    0.05674
+   ],
+   "kept": 0.8093904540536208,
+   "fit_psnr": 43.98648452758789,
+   "train_psnr": 44.29088592529297,
+   "train_worst": 38.013275146484375,
+   "test_psnr": 44.07823181152344,
+   "test_worst": 38.03514099121094,
+   "thresholds": [
+    0.01596,
+    0.9407,
+    Infinity,
+    0.05674
+   ]
+  },
+  {
+   "method": "random",
+   "seed": 6,
+   "evals": 672,
+   "seconds": 23.6,
+   "feasible": true,
+   "genome": [
+    0.45958,
+    0.78564,
+    0.95351,
+    0.40218
+   ],
+   "kept": 0.5959139181661524,
+   "fit_psnr": 44.087860107421875,
+   "train_psnr": 44.241676330566406,
+   "train_worst": 38.61664962768555,
+   "test_psnr": 43.992919921875,
+   "test_worst": 38.36429977416992,
+   "thresholds": [
+    0.01587,
+    1.192,
+    Infinity,
+    0.4022
+   ]
+  },
+  {
+   "method": "random",
+   "seed": 7,
+   "evals": 672,
+   "seconds": 24.2,
+   "feasible": true,
+   "genome": [
+    0.04986,
+    0.83047,
+    0.96845,
+    0.46037
+   ],
+   "kept": 0.5395920330220815,
+   "fit_psnr": 42.43296432495117,
+   "train_psnr": 42.38325500488281,
+   "train_worst": 38.597328186035156,
+   "test_psnr": 42.23329544067383,
+   "test_worst": 37.712364196777344,
+   "thresholds": [
+    0.0,
+    1.468,
+    Infinity,
+    0.4604
+   ]
+  },
+  {
+   "method": "random",
+   "seed": 8,
+   "evals": 672,
+   "seconds": 23.8,
+   "feasible": true,
+   "genome": [
+    0.01692,
+    0.83728,
+    0.98533,
+    0.43033
+   ],
+   "kept": 0.5696429287059672,
+   "fit_psnr": 44.574684143066406,
+   "train_psnr": 44.49237823486328,
+   "train_worst": 39.26100158691406,
+   "test_psnr": 44.29315948486328,
+   "test_worst": 38.258052825927734,
+   "thresholds": [
+    0.0,
+    1.515,
+    Infinity,
+    0.4303
+   ]
+  },
+  {
+   "method": "random",
+   "seed": 9,
+   "evals": 672,
+   "seconds": 24.3,
+   "feasible": true,
+   "genome": [
+    0.2552,
+    0.88061,
+    0.99942,
+    0.36435
+   ],
+   "kept": 0.6356381998156534,
+   "fit_psnr": 49.463966369628906,
+   "train_psnr": 49.20703125,
+   "train_worst": 39.93205261230469,
+   "test_psnr": 48.922080993652344,
+   "test_worst": 38.78645324707031,
+   "thresholds": [
+    0.004305,
+    1.853,
+    Infinity,
+    0.3644
+   ]
+  },
+  {
+   "method": "cmaes",
+   "seed": 0,
+   "evals": 672,
+   "seconds": 43.7,
+   "feasible": true,
+   "genome": [
+    0.43204,
+    0.89862,
+    0.97765,
+    0.4994
+   ],
+   "kept": 0.5000136256161584,
+   "fit_psnr": 40.079193115234375,
+   "train_psnr": 40.078041076660156,
+   "train_worst": 38.20518112182617,
+   "test_psnr": 39.97847366333008,
+   "test_worst": 38.2872428894043,
+   "thresholds": [
+    0.01331,
+    2.015,
+    Infinity,
+    0.4994
+   ]
+  },
+  {
+   "method": "cmaes",
+   "seed": 1,
+   "evals": 672,
+   "seconds": 44.1,
+   "feasible": true,
+   "genome": [
+    0.05287,
+    0.90536,
+    0.97518,
+    0.49996
+   ],
+   "kept": 0.5000288542459824,
+   "fit_psnr": 40.063720703125,
+   "train_psnr": 40.068275451660156,
+   "train_worst": 38.17023468017578,
+   "test_psnr": 39.970947265625,
+   "test_worst": 38.252925872802734,
+   "thresholds": [
+    0.001183,
+    2.079,
+    Infinity,
+    0.5
+   ]
+  },
+  {
+   "method": "cmaes",
+   "seed": 2,
+   "evals": 672,
+   "seconds": 43.4,
+   "feasible": true,
+   "genome": [
+    0.31295,
+    0.94614,
+    1.0,
+    0.50108
+   ],
+   "kept": 0.49888350098184586,
+   "fit_psnr": 40.00215148925781,
+   "train_psnr": 40.00404357910156,
+   "train_worst": 38.08189010620117,
+   "test_psnr": 39.917606353759766,
+   "test_worst": 38.17054748535156,
+   "thresholds": [
+    0.006224,
+    2.513,
+    Infinity,
+    0.5011
+   ]
+  },
+  {
+   "method": "cmaes",
+   "seed": 3,
+   "evals": 672,
+   "seconds": 44.4,
+   "feasible": true,
+   "genome": [
+    0.31306,
+    0.94781,
+    0.99067,
+    0.50076
+   ],
+   "kept": 0.4992057067286499,
+   "fit_psnr": 40.023231506347656,
+   "train_psnr": 40.02564239501953,
+   "train_worst": 38.10378646850586,
+   "test_psnr": 39.93886184692383,
+   "test_worst": 38.191246032714844,
+   "thresholds": [
+    0.006228,
+    2.532,
+    Infinity,
+    0.5008
+   ]
+  },
+  {
+   "method": "cmaes",
+   "seed": 4,
+   "evals": 672,
+   "seconds": 44.1,
+   "feasible": true,
+   "genome": [
+    0.06741,
+    0.99092,
+    1.0,
+    0.50096
+   ],
+   "kept": 0.49903899330741797,
+   "fit_psnr": 40.01555633544922,
+   "train_psnr": 40.025447845458984,
+   "train_worst": 38.08995819091797,
+   "test_psnr": 39.93275451660156,
+   "test_worst": 38.177940368652344,
+   "thresholds": [
+    0.001298,
+    Infinity,
+    Infinity,
+    0.501
+   ]
+  },
+  {
+   "method": "cmaes",
+   "seed": 5,
+   "evals": 672,
+   "seconds": 43.1,
+   "feasible": true,
+   "genome": [
+    0.0,
+    0.90839,
+    1.0,
+    0.50015
+   ],
+   "kept": 0.49983969863343086,
+   "fit_psnr": 40.06410598754883,
+   "train_psnr": 40.06549835205078,
+   "train_worst": 38.14929962158203,
+   "test_psnr": 39.98099136352539,
+   "test_worst": 38.233436584472656,
+   "thresholds": [
+    0.0,
+    2.108,
+    Infinity,
+    0.5001
+   ]
+  },
+  {
+   "method": "cmaes",
+   "seed": 6,
+   "evals": 672,
+   "seconds": 44.0,
+   "feasible": true,
+   "genome": [
+    0.26059,
+    0.99749,
+    0.97011,
+    0.50109
+   ],
+   "kept": 0.49890594317316556,
+   "fit_psnr": 40.00594711303711,
+   "train_psnr": 40.0154914855957,
+   "train_worst": 38.08025360107422,
+   "test_psnr": 39.92320251464844,
+   "test_worst": 38.169036865234375,
+   "thresholds": [
+    0.004455,
+    Infinity,
+    Infinity,
+    0.5011
+   ]
+  },
+  {
+   "method": "cmaes",
+   "seed": 7,
+   "evals": 672,
+   "seconds": 42.7,
+   "feasible": true,
+   "genome": [
+    0.31578,
+    0.95629,
+    0.98391,
+    0.50116
+   ],
+   "kept": 0.4988057548190598,
+   "fit_psnr": 40.001930236816406,
+   "train_psnr": 40.01145935058594,
+   "train_worst": 38.076454162597656,
+   "test_psnr": 39.919063568115234,
+   "test_worst": 38.16515350341797,
+   "thresholds": [
+    0.006337,
+    Infinity,
+    Infinity,
+    0.5012
+   ]
+  },
+  {
+   "method": "cmaes",
+   "seed": 8,
+   "evals": 672,
+   "seconds": 44.1,
+   "feasible": true,
+   "genome": [
+    0.31983,
+    0.9081,
+    0.98897,
+    0.50095
+   ],
+   "kept": 0.4990053300204384,
+   "fit_psnr": 40.00593185424805,
+   "train_psnr": 40.00709533691406,
+   "train_worst": 38.091346740722656,
+   "test_psnr": 39.92222213745117,
+   "test_worst": 38.17863845825195,
+   "thresholds": [
+    0.006503,
+    2.106,
+    Infinity,
+    0.501
+   ]
+  },
+  {
+   "method": "cmaes",
+   "seed": 9,
+   "evals": 672,
+   "seconds": 43.0,
+   "feasible": true,
+   "genome": [
+    0.0,
+    0.96697,
+    0.98023,
+    0.50103
+   ],
+   "kept": 0.49897086522662604,
+   "fit_psnr": 40.01006317138672,
+   "train_psnr": 40.01972961425781,
+   "train_worst": 38.084815979003906,
+   "test_psnr": 39.9272346496582,
+   "test_worst": 38.17318344116211,
+   "thresholds": [
+    0.0,
+    Infinity,
+    Infinity,
+    0.501
+   ]
+  },
+  {
+   "method": "sweep_opacity",
+   "seed": 0,
+   "evals": 76,
+   "seconds": 5.7,
+   "feasible": true,
+   "genome": [
+    0.59918,
+    1.0,
+    1.0,
+    0.0
+   ],
+   "kept": 0.7307850759427724,
+   "fit_psnr": 42.983001708984375,
+   "train_psnr": 42.88190841674805,
+   "train_worst": 36.17087173461914,
+   "test_psnr": 43.01713562011719,
+   "test_worst": 35.28297805786133,
+   "thresholds": [
+    0.03869,
+    Infinity,
+    Infinity,
+    0.0
+   ]
+  },
+  {
+   "method": "sweep_scale",
+   "seed": 0,
+   "evals": 76,
+   "seconds": 5.9,
+   "feasible": true,
+   "genome": [
+    0.0,
+    0.69295,
+    1.0,
+    0.0
+   ],
+   "kept": 0.9995703923375947,
+   "fit_psnr": 40.040740966796875,
+   "train_psnr": 40.44877624511719,
+   "train_worst": 35.796607971191406,
+   "test_psnr": 40.338539123535156,
+   "test_worst": 35.441383361816406,
+   "thresholds": [
+    0.0,
+    0.7752,
+    Infinity,
+    0.0
+   ]
+  },
+  {
+   "method": "sweep_anisotropy",
+   "seed": 0,
+   "evals": 76,
+   "seconds": 4.9,
+   "feasible": true,
+   "genome": [
+    0.0,
+    1.0,
+    0.95238,
+    0.0
+   ],
+   "kept": 1.0,
+   "fit_psnr": 60.0,
+   "train_psnr": 60.0,
+   "train_worst": 60.0,
+   "test_psnr": 60.0,
+   "test_worst": 60.0,
+   "thresholds": [
+    0.0,
+    Infinity,
+    Infinity,
+    0.0
+   ]
+  },
+  {
+   "method": "sweep_importance",
+   "seed": 0,
+   "evals": 76,
+   "seconds": 4.7,
+   "feasible": true,
+   "genome": [
+    0.0,
+    1.0,
+    1.0,
+    0.50119
+   ],
+   "kept": 0.49880976235322405,
+   "fit_psnr": 40.00008773803711,
+   "train_psnr": 40.00960922241211,
+   "train_worst": 38.07551574707031,
+   "test_psnr": 39.91727066040039,
+   "test_worst": 38.16416931152344,
+   "thresholds": [
+    0.0,
+    Infinity,
+    Infinity,
+    0.5012
+   ]
+  }
+ ]
+}

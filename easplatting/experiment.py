@@ -7,7 +7,7 @@ Methods (all minimise kept fraction subject to PSNR >= tau vs the unpruned rende
   random       the same number of uniform random genomes
   cmaes        CMA-ES (cmaes.py) with the same evaluation budget
   sweep_<gene> 1-D sweep of one gene with every other gene off (deterministic, run once)
-Output: results/<scene>_<genes>g[_v<views>][_w<floor>]/log.jsonl (every evaluation) and summary.json (best per run,
+Output: results/<scene>_<genes>g[_v<views>][_w<floor>][_res<scale>]/log.jsonl (every evaluation) and summary.json (best per run,
 held-out PSNRs), then plot_run.publish() copies plots.png, summary.json and renders.jpg into the tracked figures/runs/<run>/ and refreshes
 figures/compare.png: commit those with every run.
 """
@@ -186,6 +186,7 @@ def main():
     ap.add_argument("--seeds", type=int, default=3)
     ap.add_argument("--tau", type=float, default=40.0, help="mean PSNR (dB) vs the unpruned renders")
     ap.add_argument("--views", type=int, default=8, help="number of fixed train views the fitness uses (half resolution)")
+    ap.add_argument("--fit-scale", type=float, default=0.5, help="fitness view resolution as a fraction of full (0.5 = half, the default; 1 = full)")
     ap.add_argument("--worst-tau", type=float, default=None, help="also require this PSNR on the worst fitness view")
     ap.add_argument("--parents", type=int, default=32)
     ap.add_argument("--children", type=int, default=64)
@@ -203,6 +204,7 @@ def main():
     tag = (f"_v{args.views}" if args.views != 8 else "") + (f"_w{args.worst_tau:g}" if args.worst_tau else "")
     tag += (f"_i{args.importance}" if args.importance != "sum" else "") + ("_cov" if args.view_select == "coverage" else "")
     tag += f"_L{args.allowed_loss:g}" if args.allowed_loss else ""
+    tag += f"_res{args.fit_scale:g}" if args.fit_scale != 0.5 else ""
     out = Path(args.out or f"results/{args.scene}_{n}g{tag}")
     out.mkdir(parents=True, exist_ok=True)
 
@@ -212,14 +214,16 @@ def main():
         view_idx = coverage_indices(cams, train_idx, args.views)
     else:
         view_idx = select_indices(len(cams), "train", k=args.views)
-    views = cams.subset(view_idx).scaled(0.5)   # fixed fitness views, half resolution
+    views = cams.subset(view_idx).scaled(args.fit_scale)   # fixed fitness views (half resolution unless --fit-scale)
     baselines = render_views(scene, views)
     if args.allowed_loss:
         args.tau = round(tau_from_loss(views, baselines, args.allowed_loss), 2)
         print(f"tau {args.tau} dB = allowed real loss {args.allowed_loss} dB vs the photos", flush=True)
     fitness_function = make_fitness_function(scene, stats, bounds, views, baselines, args.tau, args.worst_tau)
-    # held-out diagnostics for each run's best genome: all train views (half res) and the test views (full res)
-    all_train, test = cams.subset(train_idx).scaled(0.5), cams.subset(test_idx)
+    # held-out diagnostics for each run's best genome: all train views (at the fitness resolution; 48 spread views
+    # when that is above half, for memory) and the test views (full res)
+    held_idx = train_idx if args.fit_scale <= 0.5 else [train_idx[i] for i in select_indices(len(train_idx), "all", k=48)]
+    all_train, test = cams.subset(held_idx).scaled(args.fit_scale), cams.subset(test_idx)
     all_train_base, test_base = render_views(scene, all_train, batch_size=4), render_views(scene, test, batch_size=4)
 
     runs = []                                         # (method, seed)

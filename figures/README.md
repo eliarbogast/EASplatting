@@ -6,6 +6,8 @@ Every `python -m easplatting.experiment` run publishes its figure here automatic
 **Commit this folder with each run** (`results/` is git-ignored; the per-evaluation `log.jsonl` stays there).
 Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 
+> **Read the "Full-resolution fitness" section first:** everything from the headline to the fronts evolves on half-res fitness views, which over-reports quality on the outdoor scenes (garden, bicycle).
+
 ## Headline (2026-11-18; 4 genes, 3 seeds, 672 evals per GA/random run, sweeps 64 evals per gene)
 % of Gaussians kept (lower is better); quality is always measured against the unpruned render.
 
@@ -70,11 +72,41 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
   The importance sweep alone has the best front on all scenes; NSGA-II beats random everywhere, MAP-Elites only on bonsai/garden. MAP-Elites archives fill
   90-96% of cells, so the descriptor space is easy to cover but the extra diversity does not buy quality.
 
+## Full-resolution fitness (2026-11-20; `max` importance, 32 views, mean >= 40 dB, worst >= 35 dB; `runs/<scene>_4g_v32_w35_imax_res1/`)
+**Why:** every table above evolves on HALF-resolution fitness views. Re-scoring the half-res runs' best genomes at full resolution (`python -m easplatting.rescore`, no new search) shows the floors
+do not hold there: bonsai holds, counter misses (CMA-ES / importance sweep mean 39.3 dB, worst 35.2; 0/3 CMA-ES seeds hold both floors), garden misses by a lot (mean 36.7, worst 28.9; 0/3 GA, 0/3 CMA-ES),
+bicycle likewise (34.8 / 26.9). The opacity sweep holds on every scene. **Fix:** evolve on full-res fitness views (`experiment.py --fit-scale 1`), 10 seeds per searcher, refined sweeps (12 bisection steps),
+importance scores unchanged (computed once at half res, cached). The half-res runs above stay as the ablation.
+
+% kept (lower is better), mean over seeds; "half" = tables above (3 seeds, half-res fitness), "full" = full-res fitness (10 seeds):
+
+| Scene | GA half / full | Random half / full | CMA-ES half / full | Importance sweep half / full | Opacity sweep half / full |
+|---|---|---|---|---|---|
+| bonsai | 54.4 / 53.1 | 67.8 / 65.2 | 51.0 / **49.9** | 51.0 / **49.9** | 73.1 / 73.1 |
+| counter | 44.6 / 46.6 | 55.4 / 57.3 | 42.7 / **44.0** | 42.7 / **44.0** | 64.1 / 63.8 |
+| garden | 56.5 / 65.1 | 64.2 / 75.4 | 52.1 / **63.1** | 52.1 / 68.5 | 65.8 / 64.8 |
+| bicycle | 54.7 / 67.4 | 75.8 / 78.3 | 52.3 / **65.0** | 52.2 / 65.3 | 73.1 / 71.4 |
+
+Held-out check of the full-res runs (test views, full res, CMA-ES: mean over seeds of the mean / minimum over seeds of the worst view; floors 40 / 35): bonsai 39.9 / 38.2, counter 39.9 / 35.4,
+garden 40.8 / 32.5, bicycle 45.0 / 38.6. Every run holds both floors on the full-res fitness views (`rescore` on `*_res1`: 10/10 per searcher on every scene).
+
+- **The half-res error is a size effect on the outdoor scenes.** Indoor scenes barely move (bonsai -1.1, counter +1.3 points kept for the importance sweep / CMA-ES). Garden and bicycle move +11 / +13 points: their half-res
+  numbers were not honest, because small Gaussians that half-res rendering hides matter at full res.
+- **Importance still beats opacity, by much less outdoors:** bonsai 49.9 vs 73.1 (-23), counter 44.0 vs 63.8 (-20), bicycle 65.0 vs 71.4 (-6), garden 63.1 vs 64.8 (-2, a tie: GA 65.1 and the refined importance sweep 68.5 are
+  worse than opacity). The "importance gene is the big win" claim holds on bonsai and counter only.
+- **Searchers (10 seeds, one-sided Mann-Whitney):** GA < random on every scene (p <= 0.0014); CMA-ES < GA (p = 0.0001 bonsai, 0.004 counter, 0.005 garden, 0.02 bicycle). CMA-ES ties the refined importance sweep on bonsai, counter,
+  bicycle (differences 0.0, 0.0, -0.3 points) and beats it on garden by 5.4 points, but the garden sweep is not trustworthy there: its feasible edge is not monotone (68.5% kept at mean 45 dB, far above the floor). GA loses to the
+  sweep by 2-3 points on bonsai, counter and bicycle. So the claim stays "evolutionary search beats random, CMA-ES matches the sweep", not "the GA wins".
+- **A margin on fitness views does not close garden's held-out gap:** test worst view 32.5 dB (CMA-ES, minimum over seeds; 33.2 on average) vs the opacity sweep's 38. That gap is held-out poses (see the exploration section on bonsai), not resolution.
+- **Not done:** importance scores are still computed from half-res renders (a likely cause of the outdoor over-pruning; recomputing at full res is the next test); fitness at 0.75 resolution or full-res worst-view only (counter, exploration branch:
+  0.75 meets the worst floor, misses the mean by 0.3 dB).
+
 ## Comparability of runs (read before comparing tables)
 - **Baseline tables A and B above** use the summed blend-weight importance, un-refined 64-point sweeps and no CMA-ES.
 - **Importance-score screening** (`*_4g_v32_w35_i<mode>`, 1-D sweeps only) keeps everything of B the same (32 views, mean >= 40 dB, worst >= 35 dB, same
   scenes, cameras, fitness, 64-point sweeps) and changes only the score: `max`, `density`, `lg` (LightGaussian-style baseline). Directly comparable with B's
   importance-sweep column (the unchanged opacity/scale/anisotropy sweeps reproduce B's numbers exactly, which is the check that nothing else drifted).
+- **Full-res main runs** (`*_imax_res1`) change only the fitness view resolution (full instead of half) and use 10 seeds instead of 3; same scenes, views, floors, scores, sweeps. Held-out diagnostics there use the fitness resolution on 48 spread train views plus full-res test views.
 - **Main runs with the chosen score** (`--methods ga,random,cmaes,sweep --sweep-refine 12`) are NOT like-for-like with B: they add CMA-ES, refine the sweeps
   (12 bisection steps, so sweep numbers drop a little), and use the new score, all at once. We did not rerun B's old score with the refined sweeps and CMA-ES
   (decided 2026-11-18) so those three changes cannot be separated.
