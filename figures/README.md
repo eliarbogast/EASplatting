@@ -138,6 +138,16 @@ The 10 features: `max`, `opacity`, `volume`, `views`, `camdist`, `sum`, `density
 
   A stricter worst floor buys ~2.3 dB of held-out worst view for ~1.6 points kept; 64 views alone do nothing; both together reach ~35.0 dB for ~2.2 points kept, still short of 36 and of the 41 dB test mean.
   The held-out gap is poses, so only a floor set above the target closes it (about 1 dB per point of floor slack). 5 seeds: differences under ~1 dB are noise.
+- **Fitness resolution on counter** (`--scale`, 10 features, cold start, 5 seeds, main floors mean >= 40 / worst >= 35 dB on 32 views; test views are full res; `res_*`):
+
+  | fitness res | sweep kept | CMA-ES kept | CMA-ES test mean / worst dB | GA kept | GA test mean / worst dB | s per run (CMA-ES) |
+  |---|---|---|---|---|---|---|
+  | half (main experiment) | 42.7 | 37.2 | 38.9 / 34.8 (min 34.5) | 40.4 | 39.6 / 34.8 (min 33.3) | 57 |
+  | 0.75 | 43.4 | 38.2 | 39.7 / 35.9 (min 35.3) | 42.0 | 40.1 / 36.2 (min 35.8) | 81 |
+  | full | 44.0 | 39.1 | 40.2 / 36.5 (min 36.1) | 43.4 | 40.8 / 36.4 (min 35.1) | 111 |
+
+  Half-res fitness reports floors it cannot deliver at full res (CMA-ES test mean 38.9 < 40, worst below 35 on most seeds). Full-res fitness meets both held-out floors on every CMA-ES seed for +1.9 points kept
+  (the 1-D sweep itself moves +1.3, so the gain over the sweep shrinks from 5.5 to 4.9 points) and ~2x time. 0.75 gets the worst-view floor but is ~0.3 dB short on the mean. GA at full res keeps about what the sweep keeps.
 Reproduce: `python -m easplatting.explore combo --scene bonsai --features max,opacity,volume,views,camdist,sum,density,lg,fisher,learned --learn-weights --warm --methods ga,cmaes`, then
 `python scripts/summarize_explore.py`; held-out evaluation `python -m easplatting.explore_eval transfer|fronts|stress|gapcheck|fps`; the figure `python scripts/plot_explore_fronts.py`. Raw rows: `results/explore/*.jsonl` (git-ignored).
 

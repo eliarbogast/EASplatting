@@ -212,7 +212,7 @@ def cmd_combo(a):
     names = a.features.split(",")
     feats = feature_ranks(names, ctx, a.scene)
     regions, count = region_ids(a.regions, ctx, a.scene)
-    views = cams.subset(select_indices(len(cams), "train", k=a.views)).scaled(0.5)
+    views = cams.subset(select_indices(len(cams), "train", k=a.views)).scaled(a.scale)
     baselines = render_views(scene, views)
     fixed = names.index(a.fixed)
 
@@ -351,6 +351,7 @@ def main():
     c.add_argument("--evals", type=int, default=1312)
     c.add_argument("--mutation", type=float, default=0.1)
     c.add_argument("--views", type=int, default=32)
+    c.add_argument("--scale", type=float, default=0.5, help="fitness view resolution as a fraction of full (0.5 = main experiment)")
     c.add_argument("--prefilter", type=int, default=0, help="multi-fidelity: screen on this many of the fitness views first")
     c.add_argument("--tau", type=float, default=40.0)
     c.add_argument("--worst-tau", type=float, default=35.0)
