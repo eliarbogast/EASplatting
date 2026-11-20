@@ -24,7 +24,7 @@ CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `r
   scene (one basin, reached by a single importance cutoff). NSGA-II and MAP-Elites lose to the importance sweep's own front.
 - **Half-res fitness over-reports quality (2026-11-20).** Re-scoring the main runs' genomes at full res shows the 40 / 35 dB floors fail on counter, garden and bicycle
   (garden worst view 29 dB, bicycle 27 dB). Evolving on full-res fitness views (10 seeds) costs +1 point kept indoors and +11 to +13 outdoors; importance beats opacity by 20-23 points on bonsai and
-  counter but only 6 on bicycle and ~2 (a tie) on garden. GA < random everywhere and CMA-ES < GA, CMA-ES ties the refined sweep. **Full-res fitness is now the main setting** (`experiment.py --fit-scale 1`).
+  counter but only 6 on bicycle and ~2 (a tie) on garden. GA < random everywhere and CMA-ES < GA, CMA-ES ties the refined sweep. **Full-res fitness is now the main setting** (`experiment.py --fit-scale 1`); on garden / bicycle full-res importance scores (`--score-scale 1`) are needed too (CMA-ES 57.8 / 55.7 % kept).
 - The `learned` and `fisher` scores failed in this simple form (worse than opacity alone), so there is no honest comparison with published scores yet.
 
 ## Decisions already made
@@ -49,8 +49,8 @@ CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `r
 - **Accepted:** our LPIPS-VGG is 0.008 above NerfBaselines' (within tolerance).
 
 ## Next steps (in order)
-0. **Importance scores at full resolution.** The scores behind the importance gene are still computed from half-res renders; recompute them at full res and re-run garden / bicycle to see whether the outdoor
-   over-pruning at half res (and the small importance-vs-opacity gap at full-res fitness) comes from the scores. Also test mixed fitness (full-res worst-view check only) and 0.75 resolution for cost.
+0. **Done 2026-11-20: importance scores at full res** (`--score-scale 1`) recover garden 63.1 -> 57.8 and bicycle 65.0 -> 55.7 % kept (CMA-ES) and restore the importance-over-opacity gap (-7 / -16). Open: bonsai / counter at full-res scores (expected small),
+   mixed fitness (full-res worst-view check only), 0.75 resolution for cost.
 1. **Make the search problem harder, where a sweep cannot follow.** With 4 genes the GA loses to CMA-ES and a refined sweep (one basin). Evolve the
    importance score itself (genome = weights over per-Gaussian features: opacity, volume, view count, blend weight, distance to the camera hull)
    or per-region thresholds (depth shell / octree cell); only then is "the GA earns its place" testable.
@@ -207,6 +207,6 @@ Everything hangs off one rule: **one JSONL row per evaluation** (`results/<run>/
 - TensorBoard scalars and `progress.png` rewritten every N generations; per-gene population histograms over generations; health warnings (empty-mask rate,
   train-vs-test gap of the incumbent).
 - Fitness-landscape slice (grid over two genes); opacity / importance histograms with the evolved cutoffs overlaid.
-- "What got removed": render only the pruned-away Gaussians next to the kept scene, and a top-down kept/removed plot (the most intuitive picture for a talk).
+- Talk visuals (side-by-side video, what-got-removed, evolution animation, ...): the ranked list is in `figures/README.md` "Presentation kit".
 - Per-test-view PSNR bars and camera poses coloured by PSNR (the tail damage); a threshold-sweep GIF (opacity 0 -> 0.2).
 - A single-page `summary.html` per run or study.

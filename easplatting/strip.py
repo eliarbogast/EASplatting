@@ -107,7 +107,7 @@ def render_strip(run_dir, ctx=None, out=None):
     args, picks = summary["args"], pick_genomes(summary["runs"])
     if "ga" not in picks:
         return None
-    ctx = ctx or setup_scene(args["scene"], args["genes"], args.get("importance", "sum"))
+    ctx = ctx or setup_scene(args["scene"], args["genes"], args.get("importance", "sum"), args.get("score_scale", 0.5))
     scene, stats, bounds, cams = ctx["scene"], ctx["stats"], ctx["bounds"], ctx["cams"]
     test = cams.subset(ctx["test_idx"])
     base = render_views(scene, test, batch_size=4)
@@ -170,7 +170,7 @@ def main():
     ctxs = {}
     for r in runs:
         args = json.loads((r / "summary.json").read_text())["args"]
-        key = (args["scene"], args["genes"], args.get("importance", "sum"))
+        key = (args["scene"], args["genes"], args.get("importance", "sum"), args.get("score_scale", 0.5))
         if key not in ctxs:
             ctxs.clear()                                  # one scene on the GPU at a time
             ctxs[key] = setup_scene(*key)

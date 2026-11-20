@@ -76,7 +76,7 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 **Why:** every table above evolves on HALF-resolution fitness views. Re-scoring the half-res runs' best genomes at full resolution (`python -m easplatting.rescore`, no new search) shows the floors
 do not hold there: bonsai holds, counter misses (CMA-ES / importance sweep mean 39.3 dB, worst 35.2; 0/3 CMA-ES seeds hold both floors), garden misses by a lot (mean 36.7, worst 28.9; 0/3 GA, 0/3 CMA-ES),
 bicycle likewise (34.8 / 26.9). The opacity sweep holds on every scene. **Fix:** evolve on full-res fitness views (`experiment.py --fit-scale 1`), 10 seeds per searcher, refined sweeps (12 bisection steps),
-importance scores unchanged (computed once at half res, cached). The half-res runs above stay as the ablation.
+importance scores first unchanged (computed once at half res, cached), then also at full res (`--score-scale 1`, last section below). The half-res runs above stay as the ablation.
 
 % kept (lower is better), mean over seeds; "half" = tables above (3 seeds, half-res fitness), "full" = full-res fitness (10 seeds):
 
@@ -98,6 +98,19 @@ garden 40.8 / 32.5, bicycle 45.0 / 38.6. Every run holds both floors on the full
   bicycle (differences 0.0, 0.0, -0.3 points) and beats it on garden by 5.4 points, but the garden sweep is not trustworthy there: its feasible edge is not monotone (68.5% kept at mean 45 dB, far above the floor). GA loses to the
   sweep by 2-3 points on bonsai, counter and bicycle. So the claim stays "evolutionary search beats random, CMA-ES matches the sweep", not "the GA wins".
 - **A margin on fitness views does not close garden's held-out gap:** test worst view 32.5 dB (CMA-ES, minimum over seeds; 33.2 on average) vs the opacity sweep's 38. That gap is held-out poses (see the exploration section on bonsai), not resolution.
+
+### Full-res importance scores (2026-11-20; `runs/<scene>_4g_v32_w35_imax_res1_sres1/`, `--fit-scale 1 --score-scale 1`)
+The importance scores were still computed from half-res renders. Computing them at full res too (10 seeds, same floors) recovers most of the outdoor loss. % kept, mean over seeds ("fit-res" = full-res fitness, half-res scores, from the table above):
+
+| Scene | GA fit-res / +scores | Random | CMA-ES | Importance sweep | Opacity sweep (unchanged) |
+|---|---|---|---|---|---|
+| garden | 65.1 / **59.6** | 75.4 / 69.1 | 63.1 / **57.8** | 68.5 / **57.1** | 64.8 |
+| bicycle | 67.4 / **57.8** | 78.3 / 68.8 | 65.0 / **55.7** | 65.3 / **55.6** | 71.4 |
+
+- **The half-res scores were the cause** of most of the outdoor loss: -5 to -11 points kept, so the importance gene again beats opacity (garden 57.8 vs 64.8, bicycle 55.7 vs 71.4: -7 and -16). Indoor scenes were not re-run (they barely moved at full-res fitness).
+- Every run holds both floors at full res (`rescore`: 10/10 per searcher). Held-out test, CMA-ES (mean over seeds of the mean / minimum over seeds of the worst view): garden 39.8 / 35.9, bicycle 39.5 / 36.7. Garden's held-out worst view rose from 32.5 to 35.9 dB, so the gap above was partly a score-resolution effect.
+- Searchers: GA < random (p = 0.0007 garden, 0.007 bicycle) and CMA-ES < GA (p = 0.002, 0.0001). CMA-ES ties the refined sweep (57.8 vs 57.1, 55.7 vs 55.6); the garden sweep is now sane (feasible, 57.1 %).
+- **Use the `_res1_sres1` runs as the main results for garden and bicycle.** `_res1` stays as the ablation.
 - **Not done:** importance scores are still computed from half-res renders (a likely cause of the outdoor over-pruning; recomputing at full res is the next test); fitness at 0.75 resolution or full-res worst-view only (counter, exploration branch:
   0.75 meets the worst floor, misses the mean by 0.3 dB).
 
@@ -106,6 +119,7 @@ garden 40.8 / 32.5, bicycle 45.0 / 38.6. Every run holds both floors on the full
 - **Importance-score screening** (`*_4g_v32_w35_i<mode>`, 1-D sweeps only) keeps everything of B the same (32 views, mean >= 40 dB, worst >= 35 dB, same
   scenes, cameras, fitness, 64-point sweeps) and changes only the score: `max`, `density`, `lg` (LightGaussian-style baseline). Directly comparable with B's
   importance-sweep column (the unchanged opacity/scale/anisotropy sweeps reproduce B's numbers exactly, which is the check that nothing else drifted).
+- **Full-res scores** (`*_imax_res1_sres1`, garden and bicycle only) additionally compute the importance scores at full res; otherwise identical to `*_res1`.
 - **Full-res main runs** (`*_imax_res1`) change only the fitness view resolution (full instead of half) and use 10 seeds instead of 3; same scenes, views, floors, scores, sweeps. Held-out diagnostics there use the fitness resolution on 48 spread train views plus full-res test views.
 - **Main runs with the chosen score** (`--methods ga,random,cmaes,sweep --sweep-refine 12`) are NOT like-for-like with B: they add CMA-ES, refine the sweeps
   (12 bisection steps, so sweep numbers drop a little), and use the new score, all at once. We did not rerun B's old score with the refined sweeps and CMA-ES
@@ -154,5 +168,14 @@ Colors: NSGA-II blue, MAP-Elites aqua, random orange, sweeps gray.
   do not beat the sweep's own front; (7) next: a search space a sweep cannot cover (evolved importance score, per-region thresholds).
 - **Slide-ready now:** `compare.png` (one-slide summary), any `runs/*/plots.png` (method detail), `runs/*/renders.jpg` and `images/` (what it looks like; the robust-setting
   strip per scene is the natural hero image), the tables above (note the comparability caveats).
-- **Worth making (not done):** a "what got removed" render (removed Gaussians only) and top-down kept/removed plot; threshold-sweep GIF (opacity 0 -> 0.2); importance and opacity histograms with the evolved cutoffs; per-view
-  PSNR bars (the tail damage); FPS of pruned scenes (the speed claim is untested: we report counts, not FPS yet).
+- **Worth making (not done), best first:**
+  1. Side-by-side orbit video, unpruned vs best genome on the same camera path, with a "kept 48%, 40.0 dB" overlay (needs GPU; build on bonsai / counter first, add garden / bicycle once settled).
+  2. "What got removed": removed-only render and error x5 next to the final render, plus a top-down kept/removed plot (the `viewer.py` modes already render these).
+  3. Wipe slider or steps 100 -> 70 -> 50 -> 40 % kept; threshold-sweep GIF (opacity 0 -> 0.2).
+  4. Evolution animation: best mask at generations 0, 5, 10, ... of one run (needs per-generation best genomes; check the logs, else re-run).
+  5. Method race (random / GA / CMA-ES / sweep) with the final render under each; the 10-seed data supports it.
+  6. Half-res vs full-res failure: one view that passes at half res and shows a hole or floater at full res.
+  7. Cross-scene summary table with thumbnails, kept %, mean / worst PSNR, FPS.
+  8. Hosted web splat viewer (e.g. SuperSplat) on exported pruned `.ply`, plus the file-size saving as a number.
+  9. Importance and opacity histograms with the evolved cutoffs; per-view PSNR bars (tail damage).
+  Label every figure with resolution and floors. Flow: problem (scene size) -> side-by-side video -> method -> evolution -> race and table -> half-res lesson -> limits.

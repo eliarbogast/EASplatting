@@ -7,7 +7,7 @@ Methods (all minimise kept fraction subject to PSNR >= tau vs the unpruned rende
   random       the same number of uniform random genomes
   cmaes        CMA-ES (cmaes.py) with the same evaluation budget
   sweep_<gene> 1-D sweep of one gene with every other gene off (deterministic, run once)
-Output: results/<scene>_<genes>g[_v<views>][_w<floor>][_res<scale>]/log.jsonl (every evaluation) and summary.json (best per run,
+Output: results/<scene>_<genes>g[_v<views>][_w<floor>][_res<fit scale>][_sres<score scale>]/log.jsonl (every evaluation) and summary.json (best per run,
 held-out PSNRs), then plot_run.publish() copies plots.png, summary.json and renders.jpg into the tracked figures/runs/<run>/ and refreshes
 figures/compare.png: commit those with every run.
 """
@@ -46,18 +46,18 @@ def scene_paths(scene):
     return f"pretrained/nb/gaussian-splatting/mipnerf360/{scene}/point_cloud.ply", f"data/360_v2/{scene}", images
 
 
-def importance_scores(scene_name, scene, cams, train_idx, mode="sum"):
-    """Per-Gaussian importance over all train views at half resolution; cached per scene and mode.
+def importance_scores(scene_name, scene, cams, train_idx, mode="sum", scale=0.5):
+    """Per-Gaussian importance over all train views at `scale` x full resolution (half by default); cached per scene, mode and scale.
     sum: blend weight summed over views   max: the largest single-view blend weight
     density: the largest per pixel weight (blend weight / footprint area)
     lg: LightGaussian-style hits x opacity x volume (a baseline score)
     learned: gradient learned keep gates (see scores.py)   fisher: photo loss sensitivity (see scores.py)
     """
-    suffix = "" if mode == "sum" else f"_{mode}"
+    suffix = ("" if mode == "sum" else f"_{mode}") + ("" if scale == 0.5 else f"_res{scale:g}")
     cache = Path("results/cache") / f"{scene_name}_importance{suffix}.pt"
     if cache.exists():
         return torch.load(cache, map_location=scene["means"].device)
-    views = cams.subset(train_idx).scaled(0.5)
+    views = cams.subset(train_idx).scaled(scale)
 
     if mode == "sum":
         score = gaussian_contributions(scene, views, batch_size=4)["blend_weight"]
@@ -84,13 +84,13 @@ def importance_scores(scene_name, scene, cams, train_idx, mode="sum"):
     return score
 
 
-def setup_scene(scene_name, genes, importance="sum"):
+def setup_scene(scene_name, genes, importance="sum", score_scale=0.5):
     """Load the scene + cameras and build the gene statistics and bounds (4 genes also computes/loads importance)."""
     scene_path, cameras_path, images = scene_paths(scene_name)
     scene = activate(load_scene(scene_path, device="cuda"))
     cams = load_cameras(cameras_path, images=images)
     train_idx, test_idx = select_indices(len(cams), "train"), select_indices(len(cams), "test")
-    scores = importance_scores(scene_name, scene, cams, train_idx, importance) if genes == 4 else None
+    scores = importance_scores(scene_name, scene, cams, train_idx, importance, score_scale) if genes == 4 else None
     stats = gene_stats(scene, scores.cuda() if scores is not None else None)
     b = slider_bounds(stats)
     return dict(scene=scene, cams=cams, stats=stats, train_idx=train_idx, test_idx=test_idx,
@@ -187,6 +187,7 @@ def main():
     ap.add_argument("--tau", type=float, default=40.0, help="mean PSNR (dB) vs the unpruned renders")
     ap.add_argument("--views", type=int, default=8, help="number of fixed train views the fitness uses (half resolution)")
     ap.add_argument("--fit-scale", type=float, default=0.5, help="fitness view resolution as a fraction of full (0.5 = half, the default; 1 = full)")
+    ap.add_argument("--score-scale", type=float, default=0.5, help="resolution (fraction of full) the importance scores are computed at")
     ap.add_argument("--worst-tau", type=float, default=None, help="also require this PSNR on the worst fitness view")
     ap.add_argument("--parents", type=int, default=32)
     ap.add_argument("--children", type=int, default=64)
@@ -205,10 +206,11 @@ def main():
     tag += (f"_i{args.importance}" if args.importance != "sum" else "") + ("_cov" if args.view_select == "coverage" else "")
     tag += f"_L{args.allowed_loss:g}" if args.allowed_loss else ""
     tag += f"_res{args.fit_scale:g}" if args.fit_scale != 0.5 else ""
+    tag += f"_sres{args.score_scale:g}" if args.score_scale != 0.5 else ""
     out = Path(args.out or f"results/{args.scene}_{n}g{tag}")
     out.mkdir(parents=True, exist_ok=True)
 
-    ctx = setup_scene(args.scene, n, args.importance)
+    ctx = setup_scene(args.scene, n, args.importance, args.score_scale)
     scene, cams, stats, bounds, train_idx, test_idx = (ctx[k] for k in ("scene", "cams", "stats", "bounds", "train_idx", "test_idx"))
     if args.view_select == "coverage":
         view_idx = coverage_indices(cams, train_idx, args.views)

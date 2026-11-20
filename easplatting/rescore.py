@@ -72,7 +72,7 @@ def main():
         if args["scene"] not in caches:
             caches.clear()
             torch.cuda.empty_cache()
-            caches[args["scene"]] = dict(ctx=setup_scene(args["scene"], args["genes"], args["importance"]))
+            caches[args["scene"]] = dict(ctx=setup_scene(args["scene"], args["genes"], args["importance"], args.get("score_scale", 0.5)))
         cache = caches[args["scene"]]
         rows, args = rescore_run(run, cache["ctx"], cache)
         print_table(rows, args)
