@@ -100,17 +100,19 @@ garden 40.8 / 32.5, bicycle 45.0 / 38.6. Every run holds both floors on the full
 - **A margin on fitness views does not close garden's held-out gap:** test worst view 32.5 dB (CMA-ES, minimum over seeds; 33.2 on average) vs the opacity sweep's 38. That gap is held-out poses (see the exploration section on bonsai), not resolution.
 
 ### Full-res importance scores (2026-11-20; `runs/<scene>_4g_v32_w35_imax_res1_sres1/`, `--fit-scale 1 --score-scale 1`)
-The importance scores were still computed from half-res renders. Computing them at full res too (10 seeds, same floors) recovers most of the outdoor loss. % kept, mean over seeds ("fit-res" = full-res fitness, half-res scores, from the table above):
+The importance scores were still computed from half-res renders. Computing them at full res too (10 seeds, same floors) recovers most of the outdoor loss and changes nothing indoors. % kept, mean over seeds ("fit-res" = full-res fitness, half-res scores, from the table above):
 
 | Scene | GA fit-res / +scores | Random | CMA-ES | Importance sweep | Opacity sweep (unchanged) |
 |---|---|---|---|---|---|
+| bonsai | 53.1 / 55.5 | 65.2 / 65.3 | 49.9 / 52.1 | 49.9 / 52.0 | 73.1 |
+| counter | 46.6 / 46.6 | 57.3 / 57.4 | 44.0 / 44.1 | 44.0 / 44.0 | 63.8 |
 | garden | 65.1 / **59.6** | 75.4 / 69.1 | 63.1 / **57.8** | 68.5 / **57.1** | 64.8 |
 | bicycle | 67.4 / **57.8** | 78.3 / 68.8 | 65.0 / **55.7** | 65.3 / **55.6** | 71.4 |
 
-- **The half-res scores were the cause** of most of the outdoor loss: -5 to -11 points kept, so the importance gene again beats opacity (garden 57.8 vs 64.8, bicycle 55.7 vs 71.4: -7 and -16). Indoor scenes were not re-run (they barely moved at full-res fitness).
-- Every run holds both floors at full res (`rescore`: 10/10 per searcher). Held-out test, CMA-ES (mean over seeds of the mean / minimum over seeds of the worst view): garden 39.8 / 35.9, bicycle 39.5 / 36.7. Garden's held-out worst view rose from 32.5 to 35.9 dB, so the gap above was partly a score-resolution effect.
-- Searchers: GA < random (p = 0.0007 garden, 0.007 bicycle) and CMA-ES < GA (p = 0.002, 0.0001). CMA-ES ties the refined sweep (57.8 vs 57.1, 55.7 vs 55.6); the garden sweep is now sane (feasible, 57.1 %).
-- **Use the `_res1_sres1` runs as the main results for garden and bicycle.** `_res1` stays as the ablation.
+- **The half-res scores were the cause** of most of the outdoor loss: -5 to -11 points kept, so the importance gene again beats opacity (garden 57.8 vs 64.8, bicycle 55.7 vs 71.4: -7 and -16). Indoors the scores do not matter: counter is unchanged (44.0 -> 44.1) and bonsai is slightly worse (49.9 -> 52.1, +2 points, so half-res scores happened to suit it). Held-out CMA-ES: bonsai 39.9 / 38.1, counter 40.0 / 36.9.
+- Every run on all four scenes holds both floors at full res (`rescore`: 10/10 per searcher). Held-out test, CMA-ES (mean over seeds of the mean / minimum over seeds of the worst view): garden 39.8 / 35.9, bicycle 39.5 / 36.7. Garden's held-out worst view rose from 32.5 to 35.9 dB, so the gap above was partly a score-resolution effect.
+- Searchers: GA < random (p = 0.0057 bonsai, 0.0004 counter, 0.0007 garden, 0.007 bicycle) and CMA-ES < GA (p = 0.0014, 0.0001, 0.002, 0.0001). CMA-ES ties the refined sweep (57.8 vs 57.1, 55.7 vs 55.6); the garden sweep is now sane (feasible, 57.1 %).
+- **Use the `_res1_sres1` runs as the main results on all four scenes** (one protocol; bonsai 52.1, counter 44.1, garden 57.8, bicycle 55.7 % kept by CMA-ES). `_res1` stays as the ablation.
 - **Not done:** importance scores are still computed from half-res renders (a likely cause of the outdoor over-pruning; recomputing at full res is the next test); fitness at 0.75 resolution or full-res worst-view only (counter, exploration branch:
   0.75 meets the worst floor, misses the mean by 0.3 dB).
 
@@ -119,7 +121,7 @@ The importance scores were still computed from half-res renders. Computing them 
 - **Importance-score screening** (`*_4g_v32_w35_i<mode>`, 1-D sweeps only) keeps everything of B the same (32 views, mean >= 40 dB, worst >= 35 dB, same
   scenes, cameras, fitness, 64-point sweeps) and changes only the score: `max`, `density`, `lg` (LightGaussian-style baseline). Directly comparable with B's
   importance-sweep column (the unchanged opacity/scale/anisotropy sweeps reproduce B's numbers exactly, which is the check that nothing else drifted).
-- **Full-res scores** (`*_imax_res1_sres1`, garden and bicycle only) additionally compute the importance scores at full res; otherwise identical to `*_res1`.
+- **Full-res scores** (`*_imax_res1_sres1`, all four scenes) additionally compute the importance scores at full res; otherwise identical to `*_res1`.
 - **Full-res main runs** (`*_imax_res1`) change only the fitness view resolution (full instead of half) and use 10 seeds instead of 3; same scenes, views, floors, scores, sweeps. Held-out diagnostics there use the fitness resolution on 48 spread train views plus full-res test views.
 - **Main runs with the chosen score** (`--methods ga,random,cmaes,sweep --sweep-refine 12`) are NOT like-for-like with B: they add CMA-ES, refine the sweeps
   (12 bisection steps, so sweep numbers drop a little), and use the new score, all at once. We did not rerun B's old score with the refined sweeps and CMA-ES

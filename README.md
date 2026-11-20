@@ -13,12 +13,12 @@ fewer Gaussians and faster rendering with minimal quality loss, no retraining. R
   (opacity, max scale, max anisotropy, importance percentile) with feasibility-first fitness, searched by GA, random, CMA-ES, NSGA-II, MAP-Elites and 1-D sweeps on
   bonsai, counter, garden and bicycle.
 - **Main result** (full-res fitness and scores, mean PSNR >= 40 dB and worst view >= 35 dB vs the unpruned render, % of Gaussians kept by CMA-ES):
-  bonsai 49.9, counter 44.0, garden 57.8, bicycle 55.7, against 64-73% for the best opacity-only threshold. The importance gene is the big win.
+  bonsai 52.1, counter 44.1, garden 57.8, bicycle 55.7, against 64-73% for the best opacity-only threshold (10 seeds, all floors hold). The importance gene is the big win.
 - **Search:** on the 4-gene space GA beats random search, but CMA-ES and a refined 1-D importance sweep match or beat it (one basin). On the exploration branch, a genome of weights over 10 per-Gaussian features goes past the sweep
   (bonsai 51 -> ~40 % kept, counter 43 -> ~37; random search fails, GA / CMA-ES succeed, and it transfers across scenes) but was run at half-res fitness on two scenes with 2 seeds.
 - **Lesson:** half-resolution fitness views and importance scores over-report quality on the outdoor scenes; use full res (`--fit-scale 1 --score-scale 1`).
-- **Next:** re-run the weighted-feature genome at full res on all four scenes with 10 seeds and merge the branch, FPS-aware objective (speed-up is 1.3-1.6x at ~40 % kept; count is a poor proxy),
-  leave-one-scene-out, fine-tuned finals, talk visuals. Bonsai / counter full-res scores are running. Details, the plan and open questions: [`docs/EA_PLAN.md`](docs/EA_PLAN.md); all tables: [`figures/README.md`](figures/README.md).
+- **Next:** re-run the weighted-feature genome on this full-res protocol (all four scenes, 10 seeds) and merge the branch, FPS-aware objective (speed-up is 1.3-1.6x at ~40 % kept; count is a poor proxy),
+  leave-one-scene-out, fine-tuned finals, talk visuals. Details, the plan and open questions: [`docs/EA_PLAN.md`](docs/EA_PLAN.md); all tables: [`figures/README.md`](figures/README.md).
 
 ## Quickstart (Linux + NVIDIA GPU)
 

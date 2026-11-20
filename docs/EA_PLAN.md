@@ -24,7 +24,7 @@ CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `r
   scene (one basin, reached by a single importance cutoff). NSGA-II and MAP-Elites lose to the importance sweep's own front.
 - **Half-res fitness over-reports quality (2026-11-20).** Re-scoring the main runs' genomes at full res shows the 40 / 35 dB floors fail on counter, garden and bicycle
   (garden worst view 29 dB, bicycle 27 dB). Evolving on full-res fitness views (10 seeds) costs +1 point kept indoors and +11 to +13 outdoors; importance beats opacity by 20-23 points on bonsai and
-  counter but only 6 on bicycle and ~2 (a tie) on garden. GA < random everywhere and CMA-ES < GA, CMA-ES ties the refined sweep. **Full-res fitness is now the main setting** (`experiment.py --fit-scale 1`); on garden / bicycle full-res importance scores (`--score-scale 1`) are needed too (CMA-ES 57.8 / 55.7 % kept).
+  counter but only 6 on bicycle and ~2 (a tie) on garden. GA < random everywhere and CMA-ES < GA, CMA-ES ties the refined sweep. **Full-res fitness is now the main setting** (`experiment.py --fit-scale 1`); on garden / bicycle full-res importance scores (`--score-scale 1`) are needed too (CMA-ES: bonsai 52.1, counter 44.1, garden 57.8, bicycle 55.7 % kept; all runs hold both floors at full res).
 - **Harder-search branch** (`explore/harder-search-2026-11-19`, not merged; bonsai + counter only, half-res fitness, 2 seeds, no significance tests; write-up in that branch's `figures/README.md`):
   - A genome of weights over 10 per-Gaussian feature ranks (max, opacity, volume, views, camdist, sum, density, lg, fisher, learned) plus per-region cutoffs contains the 1-D sweep and goes past it:
     bonsai 51.0 -> ~40 % kept, counter 42.7 -> ~37. Random search does not find it, GA and CMA-ES do (CMA-ES better by 1-3 points, no warm start needed). This is the first setting where the EA earns its place.
@@ -56,8 +56,7 @@ CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `r
 - **Accepted:** our LPIPS-VGG is 0.008 above NerfBaselines' (within tolerance).
 
 ## Next steps (in order)
-0. **Done 2026-11-20: importance scores at full res** (`--score-scale 1`) recover garden 63.1 -> 57.8 and bicycle 65.0 -> 55.7 % kept (CMA-ES) and restore the importance-over-opacity gap (-7 / -16). Open: bonsai / counter at full-res scores (expected small),
-   mixed fitness (full-res worst-view check only), 0.75 resolution for cost.
+0. **Done 2026-11-20: importance scores at full res** (`--score-scale 1`) recover garden 63.1 -> 57.8 and bicycle 65.0 -> 55.7 % kept (CMA-ES) and restore the importance-over-opacity gap (-7 / -16). Indoors it makes no difference (counter 44.0 -> 44.1, bonsai 49.9 -> 52.1), so `--score-scale 1` is the main protocol on all four scenes (CMA-ES 52.1 / 44.1 / 57.8 / 55.7). Open: mixed fitness (full-res worst-view check only), 0.75 resolution for cost.
 1. **Re-run the harder search on the main protocol, then merge the branch.** The weighted-feature genome is the real EA result (see the branch bullet above) but was found at half-res fitness on two scenes with 2 seeds. Redo it with
    full-res fitness and scores (`--fit-scale 1 --score-scale 1`), a margin on the floors (or full-res worst-view check), all four scenes and 10 seeds with Mann-Whitney vs CMA-ES on 4 genes and the refined sweep. Drop depth shells and the
    extra features (no gain), keep the 10-feature set, then merge `explore/harder-search-2026-11-19` into `main`.
