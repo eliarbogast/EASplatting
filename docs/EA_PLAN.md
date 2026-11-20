@@ -25,6 +25,13 @@ CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `r
 - **Half-res fitness over-reports quality (2026-11-20).** Re-scoring the main runs' genomes at full res shows the 40 / 35 dB floors fail on counter, garden and bicycle
   (garden worst view 29 dB, bicycle 27 dB). Evolving on full-res fitness views (10 seeds) costs +1 point kept indoors and +11 to +13 outdoors; importance beats opacity by 20-23 points on bonsai and
   counter but only 6 on bicycle and ~2 (a tie) on garden. GA < random everywhere and CMA-ES < GA, CMA-ES ties the refined sweep. **Full-res fitness is now the main setting** (`experiment.py --fit-scale 1`); on garden / bicycle full-res importance scores (`--score-scale 1`) are needed too (CMA-ES 57.8 / 55.7 % kept).
+- **Harder-search branch** (`explore/harder-search-2026-11-19`, not merged; bonsai + counter only, half-res fitness, 2 seeds, no significance tests; write-up in that branch's `figures/README.md`):
+  - A genome of weights over 10 per-Gaussian feature ranks (max, opacity, volume, views, camdist, sum, density, lg, fisher, learned) plus per-region cutoffs contains the 1-D sweep and goes past it:
+    bonsai 51.0 -> ~40 % kept, counter 42.7 -> ~37. Random search does not find it, GA and CMA-ES do (CMA-ES better by 1-3 points, no warm start needed). This is the first setting where the EA earns its place.
+  - Evolved genomes miss the floors on held-out views (bonsai: new poses; counter: half-res fitness vs full-res test, fixed by a +1 dB margin).
+  - Only the 10-feature genome transfers across scenes; depth-shell genomes do not (shells only help bonsai). At matched size on test views it beats max / sum / lg on mean PSNR but only ties max on the worst view.
+  - Features added later (tail, edge, footprint, depth, knn, scale / anisotropy, leave-out) were within noise: the set is saturated. Fixing the gate learner (loss rescale) and a Jacobian Fisher score still left them weak (good mean, bad worst view).
+  - FPS: 1.3-1.6x at ~40 % kept; Gaussian count is a poor speed proxy (opacity pruning is faster at equal count).
 - The `learned` and `fisher` scores failed in this simple form (worse than opacity alone), so there is no honest comparison with published scores yet.
 
 ## Decisions already made
@@ -51,14 +58,13 @@ CPU tests run in GitHub Actions on every push (`.github/workflows/tests.yml`; `r
 ## Next steps (in order)
 0. **Done 2026-11-20: importance scores at full res** (`--score-scale 1`) recover garden 63.1 -> 57.8 and bicycle 65.0 -> 55.7 % kept (CMA-ES) and restore the importance-over-opacity gap (-7 / -16). Open: bonsai / counter at full-res scores (expected small),
    mixed fitness (full-res worst-view check only), 0.75 resolution for cost.
-1. **Make the search problem harder, where a sweep cannot follow.** With 4 genes the GA loses to CMA-ES and a refined sweep (one basin). Evolve the
-   importance score itself (genome = weights over per-Gaussian features: opacity, volume, view count, blend weight, distance to the camera hull)
-   or per-region thresholds (depth shell / octree cell); only then is "the GA earns its place" testable.
-2. **Fix the `learned` / `fisher` score baselines** (`scores.py`): both came out worse than opacity alone. Check gate-logit spread, more steps,
-   log-transform the Fisher score. Needed for an honest comparison with published scores.
-3. **Measure FPS of pruned scenes.** The speed claim is untested: so far we report Gaussian counts, not FPS.
+1. **Re-run the harder search on the main protocol, then merge the branch.** The weighted-feature genome is the real EA result (see the branch bullet above) but was found at half-res fitness on two scenes with 2 seeds. Redo it with
+   full-res fitness and scores (`--fit-scale 1 --score-scale 1`), a margin on the floors (or full-res worst-view check), all four scenes and 10 seeds with Mann-Whitney vs CMA-ES on 4 genes and the refined sweep. Drop depth shells and the
+   extra features (no gain), keep the 10-feature set, then merge `explore/harder-search-2026-11-19` into `main`.
+2. **`learned` / `fisher` scores:** still weak after the loss-rescale fix. Low priority; they stay in the feature set only because the genome can down-weight them. LightGaussian-style `lg` is our comparison baseline (no fine-tune).
+3. **FPS-aware objective.** Measured on the branch: 1.3-1.6x at ~40 % kept, and count is a poor proxy (opacity pruning is faster at equal count). Add FPS or a render-cost term to the size objective and report it in the main tables.
 4. **Fine-tune finals only** and a byte-size objective (SH-degree gene) for comparison with LightGaussian-style numbers.
-5. **Generalization claim:** hold out scenes (tune on three, evaluate on the fourth with a fixed importance percentile ~0.5) plus an oracle-per-scene gap.
+5. **Generalization claim:** the 10-feature genome transfers across scenes (branch, bonsai <-> counter); test leave-one-scene-out on all four, with an oracle-per-scene gap.
 6. **Final study design:** 20-30 seeds on the winning comparison (3 now), with the Mann-Whitney / Wilcoxon tests from `BACKGROUND.md` section 8.
 
 **More ideas (not started)**
