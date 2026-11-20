@@ -115,6 +115,19 @@ The 10 features: `max`, `opacity`, `volume`, `views`, `camdist`, `sum`, `density
   large faint Gaussians that importance keeps.
 - **Negative results:** a fitness cache saves nothing (<2% duplicate genomes at 2 decimals); a 4-view multi-fidelity prefilter skips only 6-19% of evaluations (warm starts sit near the boundary), 0-20% time saved, no quality change.
 - Feature-weight analysis (`scripts/explore_weights.py`): `max` carries ~0.6-0.9 of the normalized weight; the features are collinear (`sum` vs `max` Spearman 0.94), so weight vectors are not unique (cosine 0.68 between seeds).
+- **10 seeds, +1 dB margin** (2026-11-20; 10 features, cold start, floors mean >= 41 dB / worst >= 36 dB on 32 fitness views, `seeds10_margin*`, Mann-Whitney one-sided):
+
+  | scene (sweep kept) | method | % kept | test mean dB | test worst dB (min) |
+  |---|---|---|---|---|
+  | bonsai (52.3) | CMA-ES | 41.4 +- 1.0 | 40.4 | 32.0 (31.5) |
+  | | GA | 44.6 +- 2.0 | 41.6 | 32.8 (31.7) |
+  | | random | 52.6 +- 2.4 | 45.1 | 37.6 (32.1) |
+  | counter (44.3) | CMA-ES | 38.7 +- 0.2 | 39.7 | 35.5 (34.5) |
+  | | GA | 43.1 +- 1.0 | 40.8 | 36.1 (33.4) |
+  | | random | 51.1 +- 3.2 | 43.3 | 37.8 (34.0) |
+
+  CMA-ES < GA (p = 0.0003 bonsai, 0.0001 counter) and GA < random (p = 0.0001, 0.0006). Random keeps about as many as the sweep or more, so its higher test PSNR is just size. The margin does **not** close the
+  held-out gap: CMA-ES test mean is below 41 dB on both scenes and bonsai's worst view stays ~32 dB (held-out poses, which a margin on fitness views cannot fix).
 Reproduce: `python -m easplatting.explore combo --scene bonsai --features max,opacity,volume,views,camdist,sum,density,lg,fisher,learned --learn-weights --warm --methods ga,cmaes`, then
 `python scripts/summarize_explore.py`; held-out evaluation `python -m easplatting.explore_eval transfer|fronts|stress|gapcheck|fps`; the figure `python scripts/plot_explore_fronts.py`. Raw rows: `results/explore/*.jsonl` (git-ignored).
 
