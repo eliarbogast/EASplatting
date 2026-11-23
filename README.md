@@ -56,7 +56,8 @@ easplatting/   the code; run a tool with  python -m easplatting.<name>
 scripts/       setup_local.sh, get_data.sh, train_gsplat.sh, check_env.py, download.py, measure.py
 tests/         CPU tests with a fake gsplat
 docs/          RUNNING.md, EA_PLAN.md, BACKGROUND.md, archive/ (history only)
-figures/       TRACKED results: README.md, compare.png, runs/<run>/ (plots.png, renders.jpg, summary.json)
+figures/       TRACKED results: README.md, compare.png, runs/<run>/ (full-res main results: plots.png, renders.jpg, summary.json, images/),
+               runs_halfres/<run>/ (earlier half-res runs)
 ```
 
 The weighted-feature genome, transfer and FPS experiments live on the unmerged branch `explore/harder-search-2026-11-19`.

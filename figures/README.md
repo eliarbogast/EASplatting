@@ -3,6 +3,8 @@
 The single place for results (plans, decisions and open questions live in [`docs/EA_PLAN.md`](../docs/EA_PLAN.md)).
 Every `python -m easplatting.experiment` run publishes its figure here automatically (`easplatting/plot_run.py`):
 `runs/<run>/` (one folder per run: `plots.png` the standard 4-panel plot, `renders.jpg` the render overview, `summary.json`) and refreshes `compare.png`.
+**Layout:** `runs/` holds the main results, the full-resolution runs (`*_res1_sres1` = main, `*_res1` = ablation; per-view JPEGs in `images/`).
+`runs_halfres/` holds the earlier half-resolution runs (`*_4g`, `*_4g_v32_w35*`, the importance-score variants and the `*_front_*` runs); they are kept for the history of the search, not as headline numbers.
 **Commit this folder with each run** (`results/` is git-ignored; the per-evaluation `log.jsonl` stays there).
 Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 
@@ -11,7 +13,7 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 ## Headline (2026-11-18; 4 genes, 3 seeds, 672 evals per GA/random run, sweeps 64 evals per gene)
 % of Gaussians kept (lower is better); quality is always measured against the unpruned render.
 
-**A. Fitness: mean PSNR >= 40 dB on 8 half-res train views** (`runs/<scene>_4g/`)
+**A. Fitness: mean PSNR >= 40 dB on 8 half-res train views** (`runs_halfres/<scene>_4g/`)
 
 | Scene | GA, mean (best) | Random | Importance sweep | Opacity sweep | Worst test view, dB: GA / imp. / opac. |
 |---|---|---|---|---|---|
@@ -20,7 +22,7 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 | garden | 55.2 (49.1) | 63.5 | **49.2** | 65.6 | 23 / 21 / 38 |
 | bicycle | 52.3 (50.2) | 75.4 | **50.8** | 74.1 | 30 / 30 / 38 |
 
-**B. Robust fitness: 32 views, mean >= 40 dB and worst view >= 35 dB** (`runs/<scene>_4g_v32_w35/`)
+**B. Robust fitness: 32 views, mean >= 40 dB and worst view >= 35 dB** (`runs_halfres/<scene>_4g_v32_w35/`)
 
 | Scene | GA, mean (best) | Random | Importance sweep | Opacity sweep | Worst test view, dB: GA / imp. / opac. |
 |---|---|---|---|---|---|
@@ -44,7 +46,7 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 
 ## Main runs, fronts and score comparison (2026-11-18; `max` importance, 32 views, mean >= 40 dB, worst >= 35 dB)
 % kept (lower is better), GA/random 3 seeds x 672 evals, sweeps refined (12 bisection steps). NOT like-for-like with B (see below).
-`runs/<scene>_4g_v32_w35_imax/`
+`runs_halfres/<scene>_4g_v32_w35_imax/`
 
 | Scene | GA | Random | CMA-ES | Importance sweep (refined) | Opacity sweep |
 |---|---|---|---|---|---|
@@ -60,7 +62,7 @@ Regenerate everything from `results/`: `python -m easplatting.plot_run --all`.
 - **`learned` gates and `fisher` scores (`*_ilearned`, `*_ifisher`) did not work in this simple form:** the importance sweep is 100% kept (learned) or 82-93% (fisher),
   worse than the opacity sweep, and GA/CMA-ES fall back to opacity (64-76%). Treat as a failed baseline, not evidence about the published scores;
   likely causes: gate logits barely separate (300 steps, 48 views) and squared-gradient scores are dominated by a few heavy-tailed Gaussians. Not debugged.
-- **Fronts** (`runs/<scene>_front_v32_imax/`, hypervolume, higher is better; 3 seeds):
+- **Fronts** (`runs_halfres/<scene>_front_v32_imax/`, hypervolume, higher is better; 3 seeds):
 
 | Scene | NSGA-II | MAP-Elites | Random | 1-D sweep |
 |---|---|---|---|---|
@@ -128,7 +130,7 @@ The importance scores were still computed from half-res renders. Computing them 
   (decided 2026-11-18) so those three changes cannot be separated.
 - **Variant runs** (`_cov` = fitness views chosen by camera coverage, `_L0.5` = tau derived from an allowed real loss of 0.5 dB vs the photos) change one
   fitness setting each, with the main runs' searchers.
-- **Fronts** (`*_front_*`) are a different experiment: no constraint, quality = worst fitness-view PSNR, judged by hypervolume (`python -m easplatting.front`; figure `runs/<scene>_front_*/front.png`), so
+- **Fronts** (`*_front_*`) are a different experiment: no constraint, quality = worst fitness-view PSNR, judged by hypervolume (`python -m easplatting.front`; figure `runs_halfres/<scene>_front_*/front.png`), so
   their numbers cannot be compared with the constrained % kept tables except by reading a front at a given quality.
 
 ## Earlier result: 3 genes, 8 views (2026-11-13; scratch scripts, not reproducible from the repo)
@@ -148,7 +150,7 @@ renders on GitHub) with `index.json` (the same, machine readable, incl. the zoom
 exist in `results/<run>/images/` but are committed only when asked for (`--publish-images`, or `python -m easplatting.plot_run results/<run> --images`).
 **Committed now:** the four robust-setting runs (`*_4g_v32_w35`). Regenerate any run's images without rerunning the search: `python -m easplatting.strip results/<run>`.
 
-Example (`runs/garden_4g_v32_w35/`): see the strip. Earlier mean-only example (`garden_4g`): at 20.7 dB the importance/GA renders look the same as the
+Example (`runs_halfres/garden_4g_v32_w35/`): see the strip. Earlier mean-only example (`garden_4g`): at 20.7 dB the importance/GA renders look the same as the
 reference at full size, but the zoom shows broken, dithered detail along the roof edge and foliage where the opacity render (40.4 dB, 65.6% kept)
 stays clean: the 21-30 dB tail is real, local damage in distant, low-importance regions.
 
@@ -157,7 +159,7 @@ A best feasible % kept vs evaluations (GA/random per seed, sweeps dashed) | B ev
 C best genome per run | D the same genomes re-measured: fitness views, all train views, test views, worst test view (dashed lines: mean constraint,
 worst-view floor). Colors: GA blue, random orange, importance sweep aqua, other sweeps gray. Run names: `<scene>_<genes>g[_v<views>][_w<floor>]`.
 
-## How to read `runs/<scene>_front_*/front.png`
+## How to read `runs_halfres/<scene>_front_*/front.png`
 A size-quality fronts on the fitness views, every seed (higher and further left wins) | B hypervolume of the front found so far vs evaluations |
 C the best front of each method re-measured on the held-out test views | D the MAP-Elites archive (best quality per cell of kept % and importance share).
 Colors: NSGA-II blue, MAP-Elites aqua, random orange, sweeps gray.
