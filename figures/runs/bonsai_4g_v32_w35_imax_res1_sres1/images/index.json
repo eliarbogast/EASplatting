@@ -1,0 +1,178 @@
+[
+ {
+  "view": "worst_view_DSCF5837",
+  "view_name": "worst test view",
+  "test_image": "DSCF5837",
+  "column": "unpruned",
+  "label": "unpruned (reference)",
+  "file": "worst_view_DSCF5837__unpruned.jpg",
+  "error": null,
+  "zoom": "worst_view_DSCF5837__unpruned__zoom4x.jpg",
+  "kept_pct": null,
+  "psnr_db": null,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   576,
+   544,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "worst_view_DSCF5837",
+  "view_name": "worst test view",
+  "test_image": "DSCF5837",
+  "column": "GA best",
+  "label": "GA best: 52.1% of Gaussians kept, 38.1 dB PSNR vs unpruned",
+  "file": "worst_view_DSCF5837__ga_best__52.1pct_kept__38.1dB.jpg",
+  "error": "worst_view_DSCF5837__ga_best__52.1pct_kept__38.1dB__error.jpg",
+  "zoom": "worst_view_DSCF5837__ga_best__52.1pct_kept__38.1dB__zoom4x.jpg",
+  "kept_pct": 52.05,
+  "psnr_db": 38.09,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   576,
+   544,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "worst_view_DSCF5837",
+  "view_name": "worst test view",
+  "test_image": "DSCF5837",
+  "column": "importance sweep",
+  "label": "importance sweep: 52.0% of Gaussians kept, 38.1 dB PSNR vs unpruned",
+  "file": "worst_view_DSCF5837__importance_sweep__52.0pct_kept__38.1dB.jpg",
+  "error": "worst_view_DSCF5837__importance_sweep__52.0pct_kept__38.1dB__error.jpg",
+  "zoom": "worst_view_DSCF5837__importance_sweep__52.0pct_kept__38.1dB__zoom4x.jpg",
+  "kept_pct": 52.04,
+  "psnr_db": 38.07,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   576,
+   544,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "worst_view_DSCF5837",
+  "view_name": "worst test view",
+  "test_image": "DSCF5837",
+  "column": "opacity sweep",
+  "label": "opacity sweep: 73.1% of Gaussians kept, 47.5 dB PSNR vs unpruned",
+  "file": "worst_view_DSCF5837__opacity_sweep__73.1pct_kept__47.5dB.jpg",
+  "error": "worst_view_DSCF5837__opacity_sweep__73.1pct_kept__47.5dB__error.jpg",
+  "zoom": "worst_view_DSCF5837__opacity_sweep__73.1pct_kept__47.5dB__zoom4x.jpg",
+  "kept_pct": 73.08,
+  "psnr_db": 47.49,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   576,
+   544,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "median_view_DSCF5669",
+  "view_name": "median test view",
+  "test_image": "DSCF5669",
+  "column": "unpruned",
+  "label": "unpruned (reference)",
+  "file": "median_view_DSCF5669__unpruned.jpg",
+  "error": null,
+  "zoom": "median_view_DSCF5669__unpruned__zoom4x.jpg",
+  "kept_pct": null,
+  "psnr_db": null,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   288,
+   352,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "median_view_DSCF5669",
+  "view_name": "median test view",
+  "test_image": "DSCF5669",
+  "column": "GA best",
+  "label": "GA best: 52.1% of Gaussians kept, 39.7 dB PSNR vs unpruned",
+  "file": "median_view_DSCF5669__ga_best__52.1pct_kept__39.7dB.jpg",
+  "error": "median_view_DSCF5669__ga_best__52.1pct_kept__39.7dB__error.jpg",
+  "zoom": "median_view_DSCF5669__ga_best__52.1pct_kept__39.7dB__zoom4x.jpg",
+  "kept_pct": 52.05,
+  "psnr_db": 39.71,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   288,
+   352,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "median_view_DSCF5669",
+  "view_name": "median test view",
+  "test_image": "DSCF5669",
+  "column": "importance sweep",
+  "label": "importance sweep: 52.0% of Gaussians kept, 39.7 dB PSNR vs unpruned",
+  "file": "median_view_DSCF5669__importance_sweep__52.0pct_kept__39.7dB.jpg",
+  "error": "median_view_DSCF5669__importance_sweep__52.0pct_kept__39.7dB__error.jpg",
+  "zoom": "median_view_DSCF5669__importance_sweep__52.0pct_kept__39.7dB__zoom4x.jpg",
+  "kept_pct": 52.04,
+  "psnr_db": 39.68,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   288,
+   352,
+   389,
+   259
+  ]
+ },
+ {
+  "view": "median_view_DSCF5669",
+  "view_name": "median test view",
+  "test_image": "DSCF5669",
+  "column": "opacity sweep",
+  "label": "opacity sweep: 73.1% of Gaussians kept, 42.1 dB PSNR vs unpruned",
+  "file": "median_view_DSCF5669__opacity_sweep__73.1pct_kept__42.1dB.jpg",
+  "error": "median_view_DSCF5669__opacity_sweep__73.1pct_kept__42.1dB__error.jpg",
+  "zoom": "median_view_DSCF5669__opacity_sweep__73.1pct_kept__42.1dB__zoom4x.jpg",
+  "kept_pct": 73.08,
+  "psnr_db": 42.14,
+  "size_px": [
+   1559,
+   1039
+  ],
+  "zoom_box_xywh": [
+   288,
+   352,
+   389,
+   259
+  ]
+ }
+]
